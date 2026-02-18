@@ -1,0 +1,1539 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Milvus Blog Publisher</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/turndown/7.1.2/turndown.min.js"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=DM+Sans:wght@300;400;500;600&display=swap');
+
+  :root {
+    --bg: #0d0f12;
+    --surface: #13161b;
+    --surface2: #1a1e26;
+    --border: #252932;
+    --border2: #2e3440;
+    --accent: #00d4aa;
+    --accent2: #0096ff;
+    --warn: #ffb340;
+    --error: #ff5f57;
+    --success: #30d158;
+    --text: #e8eaf0;
+    --text2: #8b92a5;
+    --text3: #4e5568;
+    --mono: 'DM Mono', monospace;
+    --sans: 'DM Sans', sans-serif;
+    --radius: 10px;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--sans);
+    font-size: 14px;
+    line-height: 1.6;
+    min-height: 100vh;
+  }
+
+  /* Header */
+  .header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 32px;
+    height: 56px;
+    border-bottom: 1px solid var(--border);
+    background: var(--surface);
+    position: sticky;
+    top: 0;
+    z-index: 100;
+  }
+
+  .logo {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-family: var(--mono);
+    font-size: 13px;
+    color: var(--accent);
+    letter-spacing: 0.05em;
+  }
+
+  .logo-dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: var(--accent);
+    box-shadow: 0 0 8px var(--accent);
+    animation: pulse 2s ease-in-out infinite;
+  }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.6; transform: scale(0.85); }
+  }
+
+  .settings-btn {
+    background: var(--surface2);
+    border: 1px solid var(--border2);
+    color: var(--text2);
+    padding: 6px 14px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-family: var(--sans);
+    font-size: 13px;
+    transition: all 0.15s;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .settings-btn:hover { color: var(--text); border-color: var(--accent); }
+
+  /* Main layout */
+  .main {
+    max-width: 860px;
+    margin: 0 auto;
+    padding: 40px 24px 80px;
+  }
+
+  /* Steps */
+  .steps {
+    display: flex;
+    align-items: center;
+    gap: 0;
+    margin-bottom: 40px;
+  }
+
+  .step {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex: 1;
+  }
+
+  .step-num {
+    width: 28px; height: 28px;
+    border-radius: 50%;
+    background: var(--surface2);
+    border: 1px solid var(--border2);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--text3);
+    transition: all 0.3s;
+    flex-shrink: 0;
+  }
+
+  .step-label {
+    font-size: 12px;
+    color: var(--text3);
+    font-weight: 500;
+    transition: color 0.3s;
+    white-space: nowrap;
+  }
+
+  .step-line {
+    flex: 1;
+    height: 1px;
+    background: var(--border);
+    margin: 0 8px;
+    transition: background 0.3s;
+  }
+
+  .step.active .step-num { background: var(--accent); border-color: var(--accent); color: #000; font-weight: 600; }
+  .step.active .step-label { color: var(--accent); }
+  .step.done .step-num { background: var(--success); border-color: var(--success); color: #000; }
+  .step.done .step-label { color: var(--text2); }
+  .step.done + .step-line { background: var(--success); }
+
+  /* Panels */
+  .panel {
+    display: none;
+    animation: fadeIn 0.25s ease;
+  }
+
+  .panel.active { display: block; }
+
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(6px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  /* Cards */
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 28px;
+    margin-bottom: 16px;
+  }
+
+  .card-title {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text3);
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    margin-bottom: 20px;
+  }
+
+  /* Upload zone */
+  .upload-zone {
+    border: 2px dashed var(--border2);
+    border-radius: var(--radius);
+    padding: 60px 40px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.2s;
+    background: var(--surface2);
+  }
+
+  .upload-zone:hover, .upload-zone.drag-over {
+    border-color: var(--accent);
+    background: rgba(0, 212, 170, 0.05);
+  }
+
+  .upload-icon {
+    font-size: 36px;
+    margin-bottom: 12px;
+  }
+
+  .upload-title {
+    font-size: 16px;
+    font-weight: 500;
+    color: var(--text);
+    margin-bottom: 6px;
+  }
+
+  .upload-sub {
+    font-size: 13px;
+    color: var(--text2);
+    margin-bottom: 20px;
+  }
+
+  .upload-hint {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--text3);
+    background: var(--bg);
+    padding: 10px 16px;
+    border-radius: 6px;
+    display: inline-block;
+    line-height: 1.8;
+    text-align: left;
+  }
+
+  /* Form elements */
+  .field {
+    margin-bottom: 16px;
+  }
+
+  .field label {
+    display: block;
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--text2);
+    margin-bottom: 6px;
+    font-family: var(--mono);
+  }
+
+  .field input, .field textarea, .field select {
+    width: 100%;
+    background: var(--surface2);
+    border: 1px solid var(--border2);
+    border-radius: 6px;
+    padding: 10px 12px;
+    color: var(--text);
+    font-family: var(--sans);
+    font-size: 14px;
+    transition: border-color 0.15s;
+    outline: none;
+  }
+
+  .field input:focus, .field textarea:focus {
+    border-color: var(--accent);
+  }
+
+  .field textarea {
+    resize: vertical;
+    min-height: 80px;
+    font-size: 13px;
+    line-height: 1.6;
+  }
+
+  .field-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+  }
+
+  /* Image preview */
+  .images-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    gap: 12px;
+  }
+
+  .image-card {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    overflow: hidden;
+    transition: border-color 0.2s;
+  }
+
+  .image-card.uploaded { border-color: var(--success); }
+  .image-card.uploading { border-color: var(--warn); }
+  .image-card.error { border-color: var(--error); }
+
+  .image-preview {
+    width: 100%;
+    height: 120px;
+    object-fit: cover;
+    display: block;
+    background: var(--bg);
+  }
+
+  .image-info {
+    padding: 10px;
+  }
+
+  .image-name {
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--text3);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    margin-bottom: 4px;
+  }
+
+  .image-status {
+    font-size: 11px;
+    font-weight: 500;
+    color: var(--text3);
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+
+  .image-card.uploaded .image-status { color: var(--success); }
+  .image-card.uploading .image-status { color: var(--warn); }
+  .image-card.error .image-status { color: var(--error); }
+
+  /* Markdown preview */
+  .md-preview {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 20px;
+    font-family: var(--mono);
+    font-size: 12px;
+    line-height: 1.8;
+    color: var(--text2);
+    max-height: 300px;
+    overflow-y: auto;
+    white-space: pre-wrap;
+    word-break: break-word;
+  }
+
+  /* Buttons */
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 10px 20px;
+    border-radius: 7px;
+    font-family: var(--sans);
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    border: none;
+    transition: all 0.15s;
+    text-decoration: none;
+  }
+
+  .btn-primary {
+    background: var(--accent);
+    color: #000;
+  }
+
+  .btn-primary:hover:not(:disabled) { background: #00f0c0; }
+
+  .btn-secondary {
+    background: var(--surface2);
+    border: 1px solid var(--border2);
+    color: var(--text);
+  }
+
+  .btn-secondary:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); }
+
+  .btn-ghost {
+    background: transparent;
+    border: 1px solid var(--border2);
+    color: var(--text2);
+  }
+
+  .btn-ghost:hover { color: var(--text); border-color: var(--text2); }
+
+  .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+  .btn-lg {
+    padding: 13px 28px;
+    font-size: 15px;
+  }
+
+  .actions {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 24px;
+  }
+
+  /* Status / alerts */
+  .alert {
+    padding: 12px 16px;
+    border-radius: 8px;
+    font-size: 13px;
+    margin-bottom: 16px;
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+  }
+
+  .alert-info { background: rgba(0, 150, 255, 0.1); border: 1px solid rgba(0, 150, 255, 0.3); color: #7ab8ff; }
+  .alert-success { background: rgba(48, 209, 88, 0.1); border: 1px solid rgba(48, 209, 88, 0.3); color: var(--success); }
+  .alert-warn { background: rgba(255, 179, 64, 0.1); border: 1px solid rgba(255, 179, 64, 0.3); color: var(--warn); }
+  .alert-error { background: rgba(255, 95, 87, 0.1); border: 1px solid rgba(255, 95, 87, 0.3); color: var(--error); }
+
+  /* Log */
+  .log {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 16px;
+    font-family: var(--mono);
+    font-size: 12px;
+    line-height: 1.8;
+    max-height: 200px;
+    overflow-y: auto;
+  }
+
+  .log-line { color: var(--text3); }
+  .log-line.ok { color: var(--success); }
+  .log-line.warn { color: var(--warn); }
+  .log-line.err { color: var(--error); }
+  .log-line.info { color: var(--accent2); }
+
+  /* Settings modal */
+  .modal-bg {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.7);
+    backdrop-filter: blur(4px);
+    z-index: 200;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .modal-bg.open { display: flex; }
+
+  .modal {
+    background: var(--surface);
+    border: 1px solid var(--border2);
+    border-radius: 14px;
+    padding: 32px;
+    width: 100%;
+    max-width: 540px;
+    max-height: 80vh;
+    overflow-y: auto;
+    animation: slideUp 0.2s ease;
+  }
+
+  @keyframes slideUp {
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  .modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 24px;
+  }
+
+  .modal-title {
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--text);
+  }
+
+  .close-btn {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    color: var(--text2);
+    width: 28px; height: 28px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.15s;
+  }
+
+  .close-btn:hover { color: var(--text); }
+
+  /* Tag */
+  .tag {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 11px;
+    font-weight: 600;
+    font-family: var(--mono);
+    background: rgba(0, 212, 170, 0.12);
+    color: var(--accent);
+    border: 1px solid rgba(0, 212, 170, 0.25);
+  }
+
+  /* Success screen */
+  .success-screen {
+    text-align: center;
+    padding: 60px 40px;
+  }
+
+  .success-icon {
+    font-size: 56px;
+    margin-bottom: 16px;
+  }
+
+  .success-title {
+    font-size: 24px;
+    font-weight: 600;
+    margin-bottom: 8px;
+    color: var(--success);
+  }
+
+  .success-sub {
+    color: var(--text2);
+    margin-bottom: 28px;
+  }
+
+  .pr-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    background: var(--surface2);
+    border: 1px solid var(--border2);
+    border-radius: 8px;
+    padding: 12px 20px;
+    color: var(--accent2);
+    text-decoration: none;
+    font-family: var(--mono);
+    font-size: 13px;
+    transition: all 0.15s;
+    margin-bottom: 24px;
+  }
+
+  .pr-link:hover { border-color: var(--accent2); background: rgba(0, 150, 255, 0.1); }
+
+  /* Section divider */
+  .divider {
+    height: 1px;
+    background: var(--border);
+    margin: 20px 0;
+  }
+
+  /* Progress bar */
+  .progress {
+    height: 3px;
+    background: var(--border);
+    border-radius: 2px;
+    overflow: hidden;
+    margin-bottom: 16px;
+  }
+
+  .progress-bar {
+    height: 100%;
+    background: var(--accent);
+    border-radius: 2px;
+    transition: width 0.3s ease;
+    box-shadow: 0 0 8px var(--accent);
+  }
+
+  input[type="file"] { display: none; }
+
+  .spinner {
+    width: 14px; height: 14px;
+    border: 2px solid rgba(255,255,255,0.1);
+    border-top-color: currentColor;
+    border-radius: 50%;
+    animation: spin 0.6s linear infinite;
+    display: inline-block;
+    flex-shrink: 0;
+  }
+
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .section-subtitle {
+    font-size: 13px;
+    color: var(--text2);
+    margin-bottom: 20px;
+    line-height: 1.6;
+  }
+
+  .badge {
+    display: inline-block;
+    background: rgba(0,212,170,0.1);
+    color: var(--accent);
+    border: 1px solid rgba(0,212,170,0.2);
+    border-radius: 4px;
+    padding: 1px 7px;
+    font-size: 11px;
+    font-family: var(--mono);
+    font-weight: 500;
+  }
+</style>
+</head>
+<body>
+
+<!-- Header -->
+<header class="header">
+  <div class="logo">
+    <div class="logo-dot"></div>
+    MILVUS BLOG PUBLISHER
+  </div>
+  <button class="settings-btn" onclick="openSettings()">
+    ⚙ Settings
+  </button>
+</header>
+
+<!-- Settings Modal -->
+<div class="modal-bg" id="settingsModal">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title">Configuration</div>
+      <button class="close-btn" onclick="closeSettings()">✕</button>
+    </div>
+
+    <div class="field">
+      <label>STRAPI API TOKEN</label>
+      <input type="password" id="s_strapiToken" placeholder="eyJhbGci..." />
+    </div>
+    <div class="field">
+      <label>STRAPI BASE URL</label>
+      <input type="text" id="s_strapiUrl" placeholder="https://cms.zilliz.cc" />
+    </div>
+
+    <div class="divider"></div>
+
+    <div class="field">
+      <label>GITHUB TOKEN</label>
+      <input type="password" id="s_ghToken" placeholder="ghp_..." />
+    </div>
+    <div class="field-row">
+      <div class="field">
+        <label>GITHUB OWNER</label>
+        <input type="text" id="s_ghOwner" placeholder="milvus-io" />
+      </div>
+      <div class="field">
+        <label>GITHUB REPO</label>
+        <input type="text" id="s_ghRepo" placeholder="milvus-io.github.io" />
+      </div>
+    </div>
+    <div class="field-row">
+      <div class="field">
+        <label>BASE BRANCH</label>
+        <input type="text" id="s_ghBranch" placeholder="master" />
+      </div>
+      <div class="field">
+        <label>BLOG PATH</label>
+        <input type="text" id="s_ghPath" placeholder="blog" />
+      </div>
+    </div>
+
+    <div class="divider"></div>
+
+    <div style="display:flex; gap: 10px; justify-content: flex-end;">
+      <button class="btn btn-ghost" onclick="closeSettings()">Cancel</button>
+      <button class="btn btn-primary" onclick="saveSettings()">Save Settings</button>
+    </div>
+  </div>
+</div>
+
+<!-- Main -->
+<main class="main">
+
+  <!-- Steps indicator -->
+  <div class="steps">
+    <div class="step active" id="step-1">
+      <div class="step-num">1</div>
+      <div class="step-label">Upload</div>
+    </div>
+    <div class="step-line"></div>
+    <div class="step" id="step-2">
+      <div class="step-num">2</div>
+      <div class="step-label">Review</div>
+    </div>
+    <div class="step-line"></div>
+    <div class="step" id="step-3">
+      <div class="step-num">3</div>
+      <div class="step-label">Images</div>
+    </div>
+    <div class="step-line"></div>
+    <div class="step" id="step-4">
+      <div class="step-num">4</div>
+      <div class="step-label">Publish</div>
+    </div>
+  </div>
+
+  <!-- Panel 1: Upload -->
+  <div class="panel active" id="panel-1">
+    <div class="card">
+      <div class="card-title">Step 1 — Upload Google Doc</div>
+      <p class="section-subtitle">
+        In Google Docs, go to <strong style="color:var(--text)">File → Download → Web Page (.html, zipped)</strong>, then upload the zip file here.
+      </p>
+
+      <div class="upload-zone" id="uploadZone" onclick="document.getElementById('fileInput').click()"
+           ondragover="event.preventDefault(); this.classList.add('drag-over')"
+           ondragleave="this.classList.remove('drag-over')"
+           ondrop="handleDrop(event)">
+        <div class="upload-icon">📦</div>
+        <div class="upload-title">Drop your zip file here</div>
+        <div class="upload-sub">or click to browse</div>
+        <div class="upload-hint">
+          File → Download → Web Page (.html, zipped)<br>
+          Make sure your doc has [PUBLISH] and [CONTENT] markers
+        </div>
+      </div>
+      <input type="file" id="fileInput" accept=".zip" onchange="handleFileSelect(event)">
+    </div>
+
+    <div class="card" style="border-color: rgba(0,212,170,0.2); background: rgba(0,212,170,0.03);">
+      <div class="card-title">Document format guide</div>
+      <p class="section-subtitle">Structure your Google Doc like this — the tool will ignore everything outside the markers:</p>
+      <div class="md-preview" style="font-size: 11px;">参考: https://github.com/...        ← ignored
+source link: https://...             ← ignored
+Optional titles: ...                 ← ignored
+
+[PUBLISH]
+meta_title: Your Blog Title
+meta_description: A short description...
+author: Min Yin
+keywords: Milvus, RAG, vector search
+url: my-blog-post-slug
+tags: Engineering
+[/PUBLISH]
+
+[CONTENT]
+# Your blog title here
+
+Introduction paragraph...
+
+## Section heading
+
+More content...
+[/CONTENT]</div>
+    </div>
+  </div>
+
+  <!-- Panel 2: Review -->
+  <div class="panel" id="panel-2">
+    <div class="card">
+      <div class="card-title">Step 2 — Review Meta Fields</div>
+      <p class="section-subtitle">Auto-filled from your document. Edit anything that needs adjusting.</p>
+
+      <div class="field-row">
+        <div class="field">
+          <label>META TITLE *</label>
+          <input type="text" id="f_title" placeholder="Blog title" />
+        </div>
+        <div class="field">
+          <label>AUTHOR *</label>
+          <input type="text" id="f_author" placeholder="Author name" />
+        </div>
+      </div>
+      <div class="field">
+        <label>META DESCRIPTION</label>
+        <textarea id="f_desc" rows="2" placeholder="Short description for SEO..."></textarea>
+      </div>
+      <div class="field-row">
+        <div class="field">
+          <label>URL SLUG *</label>
+          <input type="text" id="f_url" placeholder="my-blog-post-slug" />
+        </div>
+        <div class="field">
+          <label>TAGS</label>
+          <input type="text" id="f_tags" placeholder="Engineering, Tutorial" />
+        </div>
+      </div>
+      <div class="field">
+        <label>KEYWORDS</label>
+        <input type="text" id="f_keywords" placeholder="Milvus, RAG, vector search" />
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Content Preview <span class="badge" id="wordCount"></span></div>
+      <div class="md-preview" id="contentPreview"></div>
+    </div>
+
+    <div class="actions">
+      <button class="btn btn-ghost" onclick="goTo(1)">← Back</button>
+      <button class="btn btn-primary btn-lg" onclick="goTo(3)">Continue to Images →</button>
+    </div>
+  </div>
+
+  <!-- Panel 3: Images -->
+  <div class="panel" id="panel-3">
+    <div class="card">
+      <div class="card-title">Step 3 — Upload Images to Strapi</div>
+      <p class="section-subtitle" id="imagesSubtitle">Found <strong id="imageCount">0</strong> images in your document. Click upload to push them all to Strapi and auto-replace links.</p>
+
+      <div id="imagesGrid" class="images-grid" style="margin-bottom: 20px;"></div>
+
+      <div id="uploadImagesArea">
+        <button class="btn btn-primary btn-lg" onclick="uploadAllImages()" id="uploadImagesBtn">
+          ↑ Upload All Images to Strapi
+        </button>
+      </div>
+
+      <div id="uploadProgress" style="display:none; margin-top:16px;">
+        <div class="progress"><div class="progress-bar" id="progressBar" style="width:0%"></div></div>
+        <div class="log" id="uploadLog"></div>
+      </div>
+    </div>
+
+    <div class="actions">
+      <button class="btn btn-ghost" onclick="goTo(2)">← Back</button>
+      <button class="btn btn-primary btn-lg" id="toPublishBtn" onclick="goTo(4)" disabled>Continue to Publish →</button>
+    </div>
+  </div>
+
+  <!-- Panel 4: Publish -->
+  <div class="panel" id="panel-4">
+    <div id="publishArea">
+      <div class="card">
+        <div class="card-title">Step 4 — Create GitHub PR</div>
+        <p class="section-subtitle">Review the generated Markdown, then submit a PR to the milvus.io repository.</p>
+
+        <div class="field">
+          <label>PR TITLE</label>
+          <input type="text" id="f_prTitle" placeholder="Blog: Your Title Here" />
+        </div>
+
+        <div class="field">
+          <label>GENERATED MARKDOWN PREVIEW</label>
+          <div class="md-preview" id="finalMarkdown" style="max-height: 240px;"></div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">Publish Options</div>
+        <div style="display:flex; gap: 12px; flex-wrap: wrap;">
+          <button class="btn btn-secondary" onclick="downloadMarkdown()">⬇ Download .md file</button>
+          <button class="btn btn-primary btn-lg" onclick="createPR()" id="createPrBtn">🚀 Create GitHub PR</button>
+        </div>
+        <p style="font-size: 12px; color: var(--text3); margin-top: 12px;">
+          A new branch will be created automatically. You can still review the PR before merging.
+        </p>
+      </div>
+
+      <div id="publishLog" style="display:none;" class="card">
+        <div class="card-title">Log</div>
+        <div class="log" id="prLog"></div>
+      </div>
+    </div>
+
+    <div id="successArea" style="display:none;">
+      <div class="card success-screen">
+        <div class="success-icon">🎉</div>
+        <div class="success-title">PR Created!</div>
+        <div class="success-sub">Your blog post has been submitted for review.</div>
+        <a id="prUrl" href="#" target="_blank" class="pr-link">🔗 View PR on GitHub</a>
+        <br>
+        <button class="btn btn-secondary" onclick="resetAll()">Publish another post</button>
+      </div>
+    </div>
+
+    <div class="actions">
+      <button class="btn btn-ghost" onclick="goTo(3)">← Back</button>
+    </div>
+  </div>
+
+</main>
+
+<script>
+// ─── State ───────────────────────────────────────────────────────────────────
+let state = {
+  zip: null,
+  htmlContent: '',
+  images: {}, // filename -> {blob, url(local preview), strapiUrl}
+  contentHtml: '',
+  contentMarkdown: '',
+  meta: {}
+};
+
+// ─── Settings ─────────────────────────────────────────────────────────────────
+function loadSettings() {
+  return {
+    strapiToken: localStorage.getItem('strapiToken') || '',
+    strapiUrl: localStorage.getItem('strapiUrl') || 'https://cms.zilliz.cc',
+    ghToken: localStorage.getItem('ghToken') || '',
+    ghOwner: localStorage.getItem('ghOwner') || 'milvus-io',
+    ghRepo: localStorage.getItem('ghRepo') || 'milvus-io.github.io',
+    ghBranch: localStorage.getItem('ghBranch') || 'master',
+    ghPath: localStorage.getItem('ghPath') || 'blog',
+  };
+}
+
+function openSettings() {
+  const s = loadSettings();
+  document.getElementById('s_strapiToken').value = s.strapiToken;
+  document.getElementById('s_strapiUrl').value = s.strapiUrl;
+  document.getElementById('s_ghToken').value = s.ghToken;
+  document.getElementById('s_ghOwner').value = s.ghOwner;
+  document.getElementById('s_ghRepo').value = s.ghRepo;
+  document.getElementById('s_ghBranch').value = s.ghBranch;
+  document.getElementById('s_ghPath').value = s.ghPath;
+  document.getElementById('settingsModal').classList.add('open');
+}
+
+function closeSettings() {
+  document.getElementById('settingsModal').classList.remove('open');
+}
+
+function saveSettings() {
+  ['strapiToken','strapiUrl','ghToken','ghOwner','ghRepo','ghBranch','ghPath'].forEach(k => {
+    const el = document.getElementById('s_' + k);
+    if (el) localStorage.setItem(k, el.value.trim());
+  });
+  closeSettings();
+  showAlert('Settings saved!', 'success');
+}
+
+// ─── Navigation ───────────────────────────────────────────────────────────────
+function goTo(step) {
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  document.getElementById('panel-' + step).classList.add('active');
+
+  for (let i = 1; i <= 4; i++) {
+    const el = document.getElementById('step-' + i);
+    el.classList.remove('active', 'done');
+    if (i < step) el.classList.add('done');
+    if (i === step) el.classList.add('active');
+  }
+
+  if (step === 4) prepareFinalMarkdown();
+}
+
+// ─── File handling ─────────────────────────────────────────────────────────────
+function handleDrop(e) {
+  e.preventDefault();
+  document.getElementById('uploadZone').classList.remove('drag-over');
+  const file = e.dataTransfer.files[0];
+  if (file) processZip(file);
+}
+
+function handleFileSelect(e) {
+  const file = e.target.files[0];
+  if (file) processZip(file);
+}
+
+async function processZip(file) {
+  if (!file.name.endsWith('.zip')) {
+    showAlert('Please upload a .zip file exported from Google Docs', 'error');
+    return;
+  }
+
+  try {
+    state.zip = await JSZip.loadAsync(file);
+    state.images = {};
+
+    // Find HTML file
+    let htmlFile = null;
+    state.zip.forEach((path, zipEntry) => {
+      if (path.endsWith('.html') && !zipEntry.dir) htmlFile = zipEntry;
+    });
+
+    if (!htmlFile) {
+      showAlert('No HTML file found in zip. Make sure to export as "Web Page (.html, zipped)"', 'error');
+      return;
+    }
+
+    state.htmlContent = await htmlFile.async('string');
+
+    // Extract images
+    const imagePromises = [];
+    state.zip.forEach((path, zipEntry) => {
+      if (!zipEntry.dir && /\.(png|jpg|jpeg|gif|webp|svg)$/i.test(path)) {
+        imagePromises.push(
+          zipEntry.async('blob').then(blob => {
+            const filename = path.split('/').pop();
+            const localUrl = URL.createObjectURL(blob);
+            state.images[filename] = { blob, localUrl, strapiUrl: null };
+          })
+        );
+      }
+    });
+
+    await Promise.all(imagePromises);
+
+    // Parse document
+    parseDocument();
+    goTo(2);
+
+  } catch (err) {
+    showAlert('Failed to read zip: ' + err.message, 'error');
+    console.error(err);
+  }
+}
+
+// ─── Document parsing ─────────────────────────────────────────────────────────
+
+// Google Docs exports HTML with text inside nested <span> elements inside <p>.
+// We extract the full plain text of the document first, then use marker positions.
+
+function getFullText(htmlStr) {
+  const parser = new DOMParser();
+  const doc = parser.parseFromString(htmlStr, 'text/html');
+  // Replace <br> with newline before extracting text
+  doc.querySelectorAll('br').forEach(br => br.replaceWith('\n'));
+  // Add newlines after block elements
+  doc.querySelectorAll('p, h1, h2, h3, h4, h5, h6, li, tr, pre').forEach(el => {
+    el.insertAdjacentText('afterend', '\n');
+  });
+  return doc.body.textContent || '';
+}
+
+function extractTextBetween(fullText, startMarker, endMarker) {
+  const startIdx = fullText.indexOf(startMarker);
+  if (startIdx === -1) return null;
+  const endIdx = fullText.indexOf(endMarker, startIdx + startMarker.length);
+  if (endIdx === -1) return null;
+  return fullText.slice(startIdx + startMarker.length, endIdx).trim();
+}
+
+function parseMetaFields(text) {
+  const meta = {};
+  const lines = text.split('\n');
+  for (const line of lines) {
+    const colonIdx = line.indexOf(':');
+    if (colonIdx === -1) continue;
+    let key = line.slice(0, colonIdx).trim().toLowerCase();
+    const value = line.slice(colonIdx + 1).trim();
+    if (!key || !value) continue;
+    // Normalize key names
+    key = key
+      .replace(/\s+/g, '_')
+      .replace(/[^a-z0-9_]/g, '')
+      .replace('meta_title', 'title')
+      .replace('meta_description', 'desc')
+      .replace('description', 'desc');
+    meta[key] = value;
+  }
+  return meta;
+}
+
+function extractHtmlBetween(htmlStr, startMarker, endMarker) {
+  const parser = new DOMParser();
+  const doc = parser.parseFromString(htmlStr, 'text/html');
+  const allElems = Array.from(doc.body.querySelectorAll('p, h1, h2, h3, h4, h5, h6, ul, ol, pre, table, blockquote'));
+
+  let started = false;
+  let ended = false;
+  const selected = [];
+
+  for (const el of allElems) {
+    const text = el.textContent || '';
+    if (!started) {
+      if (text.includes(startMarker)) { started = true; }
+      continue;
+    }
+    if (text.includes(endMarker)) { ended = true; break; }
+    selected.push(el.outerHTML);
+  }
+
+  return started ? selected.join('\n') : null;
+}
+
+function parseDocument() {
+  const html = state.htmlContent;
+  const fullText = getFullText(html);
+
+  console.log('=== FULL TEXT SAMPLE ===');
+  console.log(fullText.slice(0, 500));
+
+  // Parse PUBLISH block
+  const publishText = extractTextBetween(fullText, '[PUBLISH]', '[/PUBLISH]');
+  console.log('PUBLISH block:', publishText);
+  if (publishText) {
+    state.meta = parseMetaFields(publishText);
+    console.log('Parsed meta:', state.meta);
+  } else {
+    console.warn('Could not find [PUBLISH] block in document!');
+    showAlert('⚠️ Could not find [PUBLISH] block. Make sure your doc contains [PUBLISH] and [/PUBLISH] markers.', 'warn');
+  }
+
+  // Parse CONTENT block as HTML
+  let contentHtml = extractHtmlBetween(html, '[CONTENT]', '[/CONTENT]');
+  if (!contentHtml) {
+    // Fallback: get plain text
+    const contentText = extractTextBetween(fullText, '[CONTENT]', '[/CONTENT]');
+    if (contentText) {
+      contentHtml = contentText.split('\n\n').map(p => `<p>${p.replace(/\n/g, '<br>')}</p>`).join('\n');
+      console.warn('Used plain text fallback for content');
+    } else {
+      console.warn('Could not find [CONTENT] block!');
+      showAlert('⚠️ Could not find [CONTENT] block. Make sure your doc contains [CONTENT] and [/CONTENT] markers.', 'warn');
+    }
+  }
+  state.contentHtml = contentHtml || '';
+
+  // Fix image src to use local blob URLs
+  const parser = new DOMParser();
+  const doc = parser.parseFromString(`<div>${state.contentHtml}</div>`, 'text/html');
+  doc.querySelectorAll('img').forEach(img => {
+    const src = img.getAttribute('src') || '';
+    // Google Docs uses paths like "images/imageN.png" in the zip
+    const filename = src.split('/').pop().split('?')[0];
+    if (state.images[filename]) {
+      img.setAttribute('src', state.images[filename].localUrl);
+      img.setAttribute('data-original-name', filename);
+    }
+  });
+  state.contentHtml = doc.body.firstChild ? doc.body.firstChild.innerHTML : '';
+
+  // Convert to Markdown
+  state.contentMarkdown = htmlToMarkdown(state.contentHtml);
+
+  // Populate UI
+  populateMetaFields();
+  populateContentPreview();
+  populateImagesGrid();
+}
+
+function htmlToMarkdown(html) {
+  const td = new TurndownService({
+    headingStyle: 'atx',
+    codeBlockStyle: 'fenced',
+    bulletListMarker: '-',
+  });
+
+  // Preserve code blocks
+  td.addRule('codeBlocks', {
+    filter: ['pre'],
+    replacement: (content, node) => {
+      const code = node.querySelector('code');
+      const lang = code ? (code.className.match(/language-(\w+)/)?.[1] || '') : '';
+      const text = node.textContent || '';
+      return `\n\`\`\`${lang}\n${text.trim()}\n\`\`\`\n`;
+    }
+  });
+
+  return td.turndown(html);
+}
+
+// ─── UI population ─────────────────────────────────────────────────────────────
+function populateMetaFields() {
+  const m = state.meta;
+  if (m.title) document.getElementById('f_title').value = m.title;
+  if (m.author) document.getElementById('f_author').value = m.author;
+  if (m.desc) document.getElementById('f_desc').value = m.desc;
+  if (m.url) document.getElementById('f_url').value = m.url;
+  if (m.tags) document.getElementById('f_tags').value = m.tags;
+  if (m.keywords) document.getElementById('f_keywords').value = m.keywords;
+}
+
+function populateContentPreview() {
+  const preview = document.getElementById('contentPreview');
+  preview.textContent = state.contentMarkdown;
+  const words = state.contentMarkdown.split(/\s+/).filter(Boolean).length;
+  document.getElementById('wordCount').textContent = `~${words} words`;
+}
+
+function populateImagesGrid() {
+  const grid = document.getElementById('imagesGrid');
+  const count = Object.keys(state.images).length;
+  document.getElementById('imageCount').textContent = count;
+
+  if (count === 0) {
+    grid.innerHTML = '<p style="color:var(--text3); font-size:13px;">No images found in document.</p>';
+    document.getElementById('toPublishBtn').disabled = false;
+    return;
+  }
+
+  grid.innerHTML = '';
+  for (const [filename, imgData] of Object.entries(state.images)) {
+    const card = document.createElement('div');
+    card.className = 'image-card';
+    card.id = 'imgcard-' + filename;
+    card.innerHTML = `
+      <img class="image-preview" src="${imgData.localUrl}" alt="${filename}">
+      <div class="image-info">
+        <div class="image-name">${filename}</div>
+        <div class="image-status">⏳ Pending upload</div>
+      </div>
+    `;
+    grid.appendChild(card);
+  }
+}
+
+// ─── Image upload ──────────────────────────────────────────────────────────────
+async function uploadAllImages() {
+  const s = loadSettings();
+  if (!s.strapiToken) {
+    showAlert('Please set your Strapi API token in Settings first', 'warn');
+    openSettings();
+    return;
+  }
+
+  const btn = document.getElementById('uploadImagesBtn');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span> Uploading...';
+
+  document.getElementById('uploadProgress').style.display = 'block';
+  const logEl = document.getElementById('uploadLog');
+  logEl.innerHTML = '';
+
+  const entries = Object.entries(state.images);
+  let done = 0;
+  let errors = 0;
+
+  for (const [filename, imgData] of entries) {
+    addLog(logEl, `Uploading ${filename}...`, 'info');
+    const card = document.getElementById('imgcard-' + filename);
+    if (card) { card.className = 'image-card uploading'; card.querySelector('.image-status').innerHTML = '<span class="spinner"></span> Uploading...'; }
+
+    try {
+      const formData = new FormData();
+      formData.append('files', imgData.blob, filename);
+
+      // Try /api/upload (Strapi v4) first, fallback to /upload (Strapi v3)
+      let res = await fetch(`${s.strapiUrl}/api/upload`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${s.strapiToken}` },
+        body: formData
+      });
+
+      if (res.status === 404 || res.status === 405) {
+        addLog(logEl, 'Trying legacy endpoint /upload...', 'info');
+        res = await fetch(`${s.strapiUrl}/upload`, {
+          method: 'POST',
+          headers: { 'Authorization': `Bearer ${s.strapiToken}` },
+          body: formData
+        });
+      }
+
+      if (!res.ok) {
+        const errText = await res.text();
+        throw new Error(`HTTP ${res.status}: ${errText.slice(0, 200)}`);
+      }
+
+      const data = await res.json();
+      const uploaded = Array.isArray(data) ? data[0] : data;
+      const strapiUrl = uploaded.url.startsWith('http') ? uploaded.url : s.strapiUrl + uploaded.url;
+
+      state.images[filename].strapiUrl = strapiUrl;
+
+      if (card) {
+        card.className = 'image-card uploaded';
+        card.querySelector('.image-status').textContent = '✓ Uploaded';
+      }
+
+      addLog(logEl, `✓ ${filename} → ${strapiUrl}`, 'ok');
+
+    } catch (err) {
+      errors++;
+      state.images[filename].strapiUrl = null;
+      if (card) {
+        card.className = 'image-card error';
+        card.querySelector('.image-status').textContent = '✕ Failed';
+      }
+      addLog(logEl, `✕ ${filename}: ${err.message}`, 'err');
+    }
+
+    done++;
+    document.getElementById('progressBar').style.width = `${(done / entries.length) * 100}%`;
+  }
+
+  // Replace image URLs in markdown
+  replaceImageUrlsInMarkdown();
+
+  if (errors === 0) {
+    addLog(logEl, `All ${done} images uploaded successfully!`, 'ok');
+    btn.innerHTML = '✓ All Uploaded';
+    document.getElementById('toPublishBtn').disabled = false;
+  } else {
+    addLog(logEl, `${done - errors} uploaded, ${errors} failed. You can still continue.`, 'warn');
+    btn.disabled = false;
+    btn.innerHTML = '↺ Retry Failed';
+    document.getElementById('toPublishBtn').disabled = false;
+  }
+}
+
+function replaceImageUrlsInMarkdown() {
+  let md = state.contentMarkdown;
+  for (const [filename, imgData] of Object.entries(state.images)) {
+    if (imgData.strapiUrl) {
+      // Replace both blob URLs and original relative paths
+      const escapedLocal = imgData.localUrl.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      md = md.replace(new RegExp(escapedLocal, 'g'), imgData.strapiUrl);
+      // Also replace original relative path patterns
+      md = md.replace(new RegExp(`images/${filename}`, 'g'), imgData.strapiUrl);
+      md = md.replace(new RegExp(filename, 'g'), imgData.strapiUrl);
+    }
+  }
+  state.contentMarkdown = md;
+}
+
+// ─── Final Markdown generation ────────────────────────────────────────────────
+function getMetaFromFields() {
+  return {
+    title: document.getElementById('f_title').value.trim(),
+    author: document.getElementById('f_author').value.trim(),
+    desc: document.getElementById('f_desc').value.trim(),
+    url: document.getElementById('f_url').value.trim(),
+    tags: document.getElementById('f_tags').value.trim(),
+    keywords: document.getElementById('f_keywords').value.trim(),
+  };
+}
+
+function generateFrontmatter(meta) {
+  const date = new Date().toISOString().split('T')[0];
+  const slug = meta.url || slugify(meta.title);
+  const tags = meta.tags ? meta.tags.split(',').map(t => t.trim()) : [];
+  const tagsYaml = tags.length > 0 ? `\ntag: ${tags.join(', ')}` : '';
+  return `---
+id: ${slug}
+title: ${meta.title}
+author: ${meta.author}
+date: ${date}
+desc: ${meta.desc}${tagsYaml}
+cover: 
+recommend: false
+canonicalUrl: 
+---
+`;
+}
+
+function slugify(text) {
+  return (text || 'blog-post')
+    .toLowerCase()
+    .replace(/[^a-z0-9\s-]/g, '')
+    .trim()
+    .replace(/\s+/g, '-')
+    .replace(/-+/g, '-');
+}
+
+function prepareFinalMarkdown() {
+  const meta = getMetaFromFields();
+  const frontmatter = generateFrontmatter(meta);
+  const fullMd = frontmatter + '\n' + state.contentMarkdown;
+  state.finalMarkdown = fullMd;
+
+  document.getElementById('finalMarkdown').textContent = fullMd;
+
+  const slug = meta.url || slugify(meta.title);
+  document.getElementById('f_prTitle').value = `Blog: ${meta.title}`;
+}
+
+// ─── Download ─────────────────────────────────────────────────────────────────
+function downloadMarkdown() {
+  prepareFinalMarkdown();
+  const meta = getMetaFromFields();
+  const slug = meta.url || slugify(meta.title);
+  const blob = new Blob([state.finalMarkdown], { type: 'text/markdown' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `${slug}.md`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+// ─── GitHub PR ─────────────────────────────────────────────────────────────────
+async function createPR() {
+  const s = loadSettings();
+  if (!s.ghToken) {
+    showAlert('Please set your GitHub token in Settings first', 'warn');
+    openSettings();
+    return;
+  }
+
+  prepareFinalMarkdown();
+  const meta = getMetaFromFields();
+  const slug = meta.url || slugify(meta.title);
+  const prTitle = document.getElementById('f_prTitle').value.trim() || `Blog: ${meta.title}`;
+  const filePath = `${s.ghPath}/${slug}.md`;
+  const branchName = `blog/${slug}-${Date.now()}`;
+
+  const btn = document.getElementById('createPrBtn');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span> Creating PR...';
+
+  document.getElementById('publishLog').style.display = 'block';
+  const logEl = document.getElementById('prLog');
+  logEl.innerHTML = '';
+
+  const headers = {
+    'Authorization': `token ${s.ghToken}`,
+    'Accept': 'application/vnd.github.v3+json',
+    'Content-Type': 'application/json'
+  };
+  const base = `https://api.github.com/repos/${s.ghOwner}/${s.ghRepo}`;
+
+  try {
+    // 1. Get base branch SHA
+    addLog(logEl, `Getting base branch (${s.ghBranch})...`, 'info');
+    const refRes = await fetch(`${base}/git/ref/heads/${s.ghBranch}`, { headers });
+    if (!refRes.ok) throw new Error(`Can't get branch: ${refRes.status} ${await refRes.text()}`);
+    const refData = await refRes.json();
+    const baseSha = refData.object.sha;
+    addLog(logEl, `✓ Base SHA: ${baseSha.slice(0,7)}`, 'ok');
+
+    // 2. Create blob
+    addLog(logEl, `Creating file blob...`, 'info');
+    const content = btoa(unescape(encodeURIComponent(state.finalMarkdown)));
+    const blobRes = await fetch(`${base}/git/blobs`, {
+      method: 'POST', headers,
+      body: JSON.stringify({ content, encoding: 'base64' })
+    });
+    if (!blobRes.ok) throw new Error(`Blob creation failed: ${blobRes.status}`);
+    const blobData = await blobRes.json();
+    addLog(logEl, `✓ File blob created`, 'ok');
+
+    // 3. Get base tree
+    const commitRes = await fetch(`${base}/git/commits/${baseSha}`, { headers });
+    const commitData = await commitRes.json();
+    const baseTreeSha = commitData.tree.sha;
+
+    // 4. Create tree
+    addLog(logEl, `Creating tree...`, 'info');
+    const treeRes = await fetch(`${base}/git/trees`, {
+      method: 'POST', headers,
+      body: JSON.stringify({
+        base_tree: baseTreeSha,
+        tree: [{ path: filePath, mode: '100644', type: 'blob', sha: blobData.sha }]
+      })
+    });
+    if (!treeRes.ok) throw new Error(`Tree creation failed: ${treeRes.status}`);
+    const treeData = await treeRes.json();
+    addLog(logEl, `✓ Tree created`, 'ok');
+
+    // 5. Create commit
+    addLog(logEl, `Creating commit...`, 'info');
+    const newCommitRes = await fetch(`${base}/git/commits`, {
+      method: 'POST', headers,
+      body: JSON.stringify({
+        message: `blog: add ${slug}.md`,
+        tree: treeData.sha,
+        parents: [baseSha]
+      })
+    });
+    if (!newCommitRes.ok) throw new Error(`Commit creation failed: ${newCommitRes.status}`);
+    const newCommitData = await newCommitRes.json();
+    addLog(logEl, `✓ Commit created`, 'ok');
+
+    // 6. Create branch
+    addLog(logEl, `Creating branch ${branchName}...`, 'info');
+    const branchRes = await fetch(`${base}/git/refs`, {
+      method: 'POST', headers,
+      body: JSON.stringify({ ref: `refs/heads/${branchName}`, sha: newCommitData.sha })
+    });
+    if (!branchRes.ok) throw new Error(`Branch creation failed: ${branchRes.status}`);
+    addLog(logEl, `✓ Branch created`, 'ok');
+
+    // 7. Create PR
+    addLog(logEl, `Opening PR...`, 'info');
+    const prRes = await fetch(`${base}/pulls`, {
+      method: 'POST', headers,
+      body: JSON.stringify({
+        title: prTitle,
+        head: branchName,
+        base: s.ghBranch,
+        body: `Auto-generated blog post published via Milvus Blog Publisher.\n\n**Author:** ${meta.author}\n**Slug:** ${slug}`
+      })
+    });
+    if (!prRes.ok) throw new Error(`PR creation failed: ${prRes.status} ${await prRes.text()}`);
+    const prData = await prRes.json();
+    addLog(logEl, `✓ PR created!`, 'ok');
+
+    // Show success
+    document.getElementById('publishArea').style.display = 'none';
+    document.getElementById('successArea').style.display = 'block';
+    document.getElementById('prUrl').href = prData.html_url;
+    document.getElementById('prUrl').textContent = prData.html_url;
+
+  } catch (err) {
+    addLog(logEl, `✕ Error: ${err.message}`, 'err');
+    btn.disabled = false;
+    btn.innerHTML = '🚀 Retry';
+    console.error(err);
+  }
+}
+
+// ─── Utils ─────────────────────────────────────────────────────────────────────
+function addLog(el, msg, type = '') {
+  const line = document.createElement('div');
+  line.className = 'log-line ' + type;
+  line.textContent = `[${new Date().toLocaleTimeString()}] ${msg}`;
+  el.appendChild(line);
+  el.scrollTop = el.scrollHeight;
+}
+
+let alertTimeout;
+function showAlert(msg, type = 'info') {
+  let el = document.getElementById('globalAlert');
+  if (!el) {
+    el = document.createElement('div');
+    el.id = 'globalAlert';
+    el.style.cssText = 'position:fixed; bottom:24px; left:50%; transform:translateX(-50%); z-index:999; min-width:300px; max-width:500px;';
+    document.body.appendChild(el);
+  }
+  el.innerHTML = `<div class="alert alert-${type}">${msg}</div>`;
+  clearTimeout(alertTimeout);
+  alertTimeout = setTimeout(() => el.innerHTML = '', 3500);
+}
+
+function resetAll() {
+  state = { zip: null, htmlContent: '', images: {}, contentHtml: '', contentMarkdown: '', meta: {} };
+  ['f_title','f_author','f_desc','f_url','f_tags','f_keywords'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.value = '';
+  });
+  document.getElementById('imagesGrid').innerHTML = '';
+  document.getElementById('uploadProgress').style.display = 'none';
+  document.getElementById('uploadLog').innerHTML = '';
+  document.getElementById('publishArea').style.display = 'block';
+  document.getElementById('successArea').style.display = 'none';
+  document.getElementById('publishLog').style.display = 'none';
+  document.getElementById('toPublishBtn').disabled = true;
+  const uploadBtn = document.getElementById('uploadImagesBtn');
+  uploadBtn.disabled = false;
+  uploadBtn.innerHTML = '↑ Upload All Images to Strapi';
+  goTo(1);
+}
+
+// Init - show settings if not configured
+window.addEventListener('load', () => {
+  const s = loadSettings();
+  if (!s.strapiToken || !s.ghToken) {
+    setTimeout(() => {
+      openSettings();
+    }, 800);
+  }
+});
+</script>
+</body>
+</html>
