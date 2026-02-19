@@ -1448,8 +1448,9 @@ async function createPR() {
   const logEl = document.getElementById('prLog');
   logEl.innerHTML = '';
 
-  // Fine-grained tokens (github_pat_) need Bearer auth; classic tokens (ghp_) use token auth
-  const authType = s.ghToken.startsWith('github_pat_') ? 'Bearer' : 'token';
+  // Fine-grained tokens (github_pat_) and OAuth tokens (gho_/ghu_) need Bearer auth; classic tokens (ghp_) use token auth
+  const needsBearer = s.ghToken.startsWith('github_pat_') || s.ghToken.startsWith('gho_') || s.ghToken.startsWith('ghu_');
+  const authType = needsBearer ? 'Bearer' : 'token';
   const authHeaders = {
     'Authorization': `${authType} ${s.ghToken}`,
     'Accept': 'application/vnd.github.v3+json',
