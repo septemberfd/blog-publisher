@@ -1578,7 +1578,11 @@ function stripExtension(filename) {
 // Returns { frontmatter: "---\n...\n---\n", body: "rest of text" }
 function splitFrontmatter(text) {
   const m = text.match(/^(---\r?\n[\s\S]*?\r?\n---)\r?\n?([\s\S]*)$/);
-  if (m) return { frontmatter: m[1] + '\n', body: m[2] };
+  if (m) {
+    // Remove blank lines inside the YAML block (Feishu exports often add them)
+    const cleanedFm = m[1].replace(/\n\n+/g, '\n');
+    return { frontmatter: cleanedFm + '\n', body: m[2] };
+  }
   return { frontmatter: '', body: text };
 }
 
