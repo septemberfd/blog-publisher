@@ -1004,6 +1004,21 @@ async function processZip(file) {
 // Google Docs exports HTML with text inside nested <span> elements inside <p>.
 // We extract the full plain text of the document first, then use marker positions.
 
+function normalizeText(text) {
+  // Normalize fullwidth brackets and punctuation (common when typing with CJK input methods)
+  return text
+    .replace(/\uff3b/g, '[')   // ［ → [
+    .replace(/\uff3d/g, ']')   // ］ → ]
+    .replace(/\u3010/g, '[')   // 【 → [
+    .replace(/\u3011/g, ']')   // 】 → ]
+    .replace(/\uff1a/g, ':')   // ： → :
+    .replace(/\u00a0/g, ' ')   // non-breaking space → space
+    .replace(/\u200b/g, '')    // zero-width space → remove
+    .replace(/\u200c/g, '')    // zero-width non-joiner → remove
+    .replace(/\u200d/g, '')    // zero-width joiner → remove
+    .replace(/\ufeff/g, '');   // BOM → remove
+}
+
 function getFullText(htmlStr) {
   const parser = new DOMParser();
   const doc = parser.parseFromString(htmlStr, 'text/html');
@@ -1013,20 +1028,38 @@ function getFullText(htmlStr) {
   doc.querySelectorAll('p, h1, h2, h3, h4, h5, h6, li, tr, pre').forEach(el => {
     el.insertAdjacentText('afterend', '\n');
   });
-  return doc.body.textContent || '';
+  return normalizeText(doc.body.textContent || '');
 }
 
 function extractTextBetween(fullText, startMarker, endMarker) {
-  const startIdx = fullText.indexOf(startMarker);
-  if (startIdx === -1) return null;
-  const endIdx = fullText.indexOf(endMarker, startIdx + startMarker.length);
-  if (endIdx === -1) return null;
-  return fullText.slice(startIdx + startMarker.length, endIdx).trim();
+  // Try exact match first
+  let startIdx = fullText.indexOf(startMarker);
+  let endIdx = startIdx !== -1 ? fullText.indexOf(endMarker, startIdx + startMarker.length) : -1;
+  if (startIdx !== -1 && endIdx !== -1) {
+    return fullText.slice(startIdx + startMarker.length, endIdx).trim();
+  }
+
+  // Fallback: case-insensitive regex match, tolerant of whitespace around brackets
+  // Converts "[PUBLISH]" → /\[\s*PUBLISH\s*\]/i
+  // Converts "[/PUBLISH]" → /\[\s*\/\s*PUBLISH\s*\]/i
+  function markerToPattern(marker) {
+    return marker
+      .replace('[', '\\[\\s*')
+      .replace('/', '\\/\\s*')
+      .replace(']', '\\s*\\]');
+  }
+  const regex = new RegExp(markerToPattern(startMarker) + '([\\s\\S]*?)' + markerToPattern(endMarker), 'i');
+  const match = fullText.match(regex);
+  if (match) return match[1].trim();
+
+  return null;
 }
 
 function parseMetaFields(text) {
   const meta = {};
-  const lines = text.split('\n');
+  // Normalize the text first (handles fullwidth colons, etc.)
+  const normalized = normalizeText(text);
+  const lines = normalized.split('\n');
   for (const line of lines) {
     const colonIdx = line.indexOf(':');
     if (colonIdx === -1) continue;
@@ -1036,31 +1069,52 @@ function parseMetaFields(text) {
     // Normalize key names
     key = key
       .replace(/\s+/g, '_')
-      .replace(/[^a-z0-9_]/g, '')
-      .replace('meta_title', 'title')
-      .replace('meta_description', 'desc')
-      .replace('description', 'desc');
+      .replace(/[^a-z0-9_]/g, '');
+    // Map common aliases to canonical names
+    const keyMap = {
+      'meta_title': 'title',
+      'meta_description': 'desc',
+      'description': 'desc',
+      'meta_desc': 'desc',
+      'slug': 'url',
+      'tag': 'tags',
+      'keyword': 'keywords',
+    };
+    if (keyMap[key]) key = keyMap[key];
     meta[key] = value;
   }
   return meta;
 }
 
+function textContainsMarker(text, marker) {
+  // Check exact match first
+  if (text.includes(marker)) return true;
+  // Check after normalizing text (handles CJK brackets, non-breaking spaces, etc.)
+  const normalized = normalizeText(text);
+  if (normalized.includes(marker)) return true;
+  // Check case-insensitive with optional whitespace inside brackets
+  // e.g. "[ PUBLISH ]" or "[publish]"
+  const keyword = marker.replace(/[\[\]\/]/g, '').trim();
+  const hasSlash = marker.includes('/');
+  const pattern = new RegExp('\\[\\s*' + (hasSlash ? '\\/\\s*' : '') + keyword + '\\s*\\]', 'i');
+  return pattern.test(normalized);
+}
+
 function extractHtmlBetween(htmlStr, startMarker, endMarker) {
   const parser = new DOMParser();
   const doc = parser.parseFromString(htmlStr, 'text/html');
-  const allElems = Array.from(doc.body.querySelectorAll('p, h1, h2, h3, h4, h5, h6, ul, ol, pre, table, blockquote'));
+  const allElems = Array.from(doc.body.querySelectorAll('p, h1, h2, h3, h4, h5, h6, ul, ol, pre, table, blockquote, div'));
 
   let started = false;
-  let ended = false;
   const selected = [];
 
   for (const el of allElems) {
     const text = el.textContent || '';
     if (!started) {
-      if (text.includes(startMarker)) { started = true; }
+      if (textContainsMarker(text, startMarker)) { started = true; }
       continue;
     }
-    if (text.includes(endMarker)) { ended = true; break; }
+    if (textContainsMarker(text, endMarker)) { break; }
     selected.push(el.outerHTML);
   }
 
@@ -1072,7 +1126,7 @@ function parseDocument() {
   const fullText = getFullText(html);
 
   console.log('=== FULL TEXT SAMPLE ===');
-  console.log(fullText.slice(0, 500));
+  console.log(fullText.slice(0, 800));
 
   // Parse PUBLISH block
   const publishText = extractTextBetween(fullText, '[PUBLISH]', '[/PUBLISH]');
@@ -1082,7 +1136,15 @@ function parseDocument() {
     console.log('Parsed meta:', state.meta);
   } else {
     console.warn('Could not find [PUBLISH] block in document!');
-    showAlert('⚠️ Could not find [PUBLISH] block. Make sure your doc contains [PUBLISH] and [/PUBLISH] markers.', 'warn');
+    console.log('Looking for markers in text... indexOf [PUBLISH]:', fullText.indexOf('[PUBLISH]'));
+    console.log('Character codes around potential markers:');
+    // Log character codes to help debug encoding issues
+    const idx = fullText.search(/publish/i);
+    if (idx !== -1) {
+      const surrounding = fullText.slice(Math.max(0, idx - 5), idx + 15);
+      console.log('Found "publish" at index', idx, '- surrounding chars:', Array.from(surrounding).map(c => c + '(U+' + c.charCodeAt(0).toString(16).padStart(4, '0') + ')').join(' '));
+    }
+    showAlert('Could not find [PUBLISH] block. Make sure your doc contains [PUBLISH] and [/PUBLISH] markers.', 'warn');
   }
 
   // Parse CONTENT block as HTML
@@ -1386,9 +1448,14 @@ async function createPR() {
   const logEl = document.getElementById('prLog');
   logEl.innerHTML = '';
 
-  const headers = {
-    'Authorization': `token ${s.ghToken}`,
+  // Fine-grained tokens (github_pat_) need Bearer auth; classic tokens (ghp_) use token auth
+  const authType = s.ghToken.startsWith('github_pat_') ? 'Bearer' : 'token';
+  const authHeaders = {
+    'Authorization': `${authType} ${s.ghToken}`,
     'Accept': 'application/vnd.github.v3+json',
+  };
+  const postHeaders = {
+    ...authHeaders,
     'Content-Type': 'application/json'
   };
   const base = `https://api.github.com/repos/${s.ghOwner}/${s.ghRepo}`;
@@ -1396,68 +1463,73 @@ async function createPR() {
   try {
     // 1. Get base branch SHA
     addLog(logEl, `Getting base branch (${s.ghBranch})...`, 'info');
-    const refRes = await fetch(`${base}/git/ref/heads/${s.ghBranch}`, { headers });
-    if (!refRes.ok) throw new Error(`Can't get branch: ${refRes.status} ${await refRes.text()}`);
+    const refRes = await fetch(`${base}/git/refs/heads/${s.ghBranch}`, { headers: authHeaders });
+    if (!refRes.ok) throw new Error(`Can't get branch "${s.ghBranch}": HTTP ${refRes.status}. Check that the branch exists and your token has repo access.`);
     const refData = await refRes.json();
-    const baseSha = refData.object.sha;
+    // git/refs/ may return an array or a single object
+    const refObj = Array.isArray(refData) ? refData.find(r => r.ref === `refs/heads/${s.ghBranch}`) : refData;
+    if (!refObj) throw new Error(`Branch "${s.ghBranch}" not found in refs response.`);
+    const baseSha = refObj.object.sha;
     addLog(logEl, `✓ Base SHA: ${baseSha.slice(0,7)}`, 'ok');
 
     // 2. Create blob
     addLog(logEl, `Creating file blob...`, 'info');
     const content = btoa(unescape(encodeURIComponent(state.finalMarkdown)));
     const blobRes = await fetch(`${base}/git/blobs`, {
-      method: 'POST', headers,
+      method: 'POST', headers: postHeaders,
       body: JSON.stringify({ content, encoding: 'base64' })
     });
-    if (!blobRes.ok) throw new Error(`Blob creation failed: ${blobRes.status}`);
+    if (!blobRes.ok) throw new Error(`Blob creation failed: HTTP ${blobRes.status} - ${await blobRes.text()}`);
     const blobData = await blobRes.json();
     addLog(logEl, `✓ File blob created`, 'ok');
 
     // 3. Get base tree
-    const commitRes = await fetch(`${base}/git/commits/${baseSha}`, { headers });
+    addLog(logEl, `Getting base tree...`, 'info');
+    const commitRes = await fetch(`${base}/git/commits/${baseSha}`, { headers: authHeaders });
+    if (!commitRes.ok) throw new Error(`Can't get commit ${baseSha.slice(0,7)}: HTTP ${commitRes.status}`);
     const commitData = await commitRes.json();
     const baseTreeSha = commitData.tree.sha;
 
     // 4. Create tree
     addLog(logEl, `Creating tree...`, 'info');
     const treeRes = await fetch(`${base}/git/trees`, {
-      method: 'POST', headers,
+      method: 'POST', headers: postHeaders,
       body: JSON.stringify({
         base_tree: baseTreeSha,
         tree: [{ path: filePath, mode: '100644', type: 'blob', sha: blobData.sha }]
       })
     });
-    if (!treeRes.ok) throw new Error(`Tree creation failed: ${treeRes.status}`);
+    if (!treeRes.ok) throw new Error(`Tree creation failed: HTTP ${treeRes.status} - ${await treeRes.text()}`);
     const treeData = await treeRes.json();
     addLog(logEl, `✓ Tree created`, 'ok');
 
     // 5. Create commit
     addLog(logEl, `Creating commit...`, 'info');
     const newCommitRes = await fetch(`${base}/git/commits`, {
-      method: 'POST', headers,
+      method: 'POST', headers: postHeaders,
       body: JSON.stringify({
         message: `blog: add ${slug}.md`,
         tree: treeData.sha,
         parents: [baseSha]
       })
     });
-    if (!newCommitRes.ok) throw new Error(`Commit creation failed: ${newCommitRes.status}`);
+    if (!newCommitRes.ok) throw new Error(`Commit creation failed: HTTP ${newCommitRes.status} - ${await newCommitRes.text()}`);
     const newCommitData = await newCommitRes.json();
     addLog(logEl, `✓ Commit created`, 'ok');
 
     // 6. Create branch
     addLog(logEl, `Creating branch ${branchName}...`, 'info');
     const branchRes = await fetch(`${base}/git/refs`, {
-      method: 'POST', headers,
+      method: 'POST', headers: postHeaders,
       body: JSON.stringify({ ref: `refs/heads/${branchName}`, sha: newCommitData.sha })
     });
-    if (!branchRes.ok) throw new Error(`Branch creation failed: ${branchRes.status}`);
+    if (!branchRes.ok) throw new Error(`Branch creation failed: HTTP ${branchRes.status} - ${await branchRes.text()}`);
     addLog(logEl, `✓ Branch created`, 'ok');
 
     // 7. Create PR
     addLog(logEl, `Opening PR...`, 'info');
     const prRes = await fetch(`${base}/pulls`, {
-      method: 'POST', headers,
+      method: 'POST', headers: postHeaders,
       body: JSON.stringify({
         title: prTitle,
         head: branchName,
