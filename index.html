@@ -2414,10 +2414,12 @@ async function createPR() {
   if (!prRepoRaw) { showAlert('Enter the target repo (owner/repo)', 'warn'); return; }
   if (!prBranch)  { showAlert('Enter the base branch', 'warn'); return; }
 
-  const parts = prRepoRaw.split('/');
+  // Accept full GitHub URLs: https://github.com/owner/repo or https://github.com/owner/repo.git
+  const repoNorm = prRepoRaw.replace(/^https?:\/\/github\.com\//, '').replace(/\.git$/, '');
+  const parts = repoNorm.split('/').filter(Boolean);
   if (parts.length < 2) { showAlert('Repo must be owner/repo format', 'error'); return; }
-  const ghOwner = parts[0].trim();
-  const ghRepo  = parts[1].trim();
+  const ghOwner = parts[parts.length - 2];
+  const ghRepo  = parts[parts.length - 1];
 
   // Build file path: use state.filename (which comes from id: field or original filename)
   const filename   = state.filename || 'blog-post.md';
@@ -2435,19 +2437,28 @@ async function createPR() {
   addLog(logEl, `Repo: ${ghOwner}/${ghRepo}  Branch: ${prBranch}`, 'info');
   addLog(logEl, `File: ${filePath}`, 'info');
 
-  const needsBearer = s.ghToken.startsWith('github_pat_') || s.ghToken.startsWith('gho_') || s.ghToken.startsWith('ghu_');
-  const authType    = needsBearer ? 'Bearer' : 'token';
+  // Bearer works for all token types (classic PAT, fine-grained PAT, OAuth)
   const authHeaders = {
-    'Authorization': `${authType} ${s.ghToken}`,
+    'Authorization': `Bearer ${s.ghToken.trim()}`,
     'Accept': 'application/vnd.github.v3+json',
   };
   const postHeaders = { ...authHeaders, 'Content-Type': 'application/json' };
   const base = `https://api.github.com/repos/${ghOwner}/${ghRepo}`;
 
+  let _step = 'initializing';
+  const gfetch = async (step, url, opts) => {
+    _step = step;
+    try {
+      return await fetch(url, opts);
+    } catch (e) {
+      throw new Error(`${step} — ${e.message}. (Check internet connection, token permissions, and that the repo "${ghOwner}/${ghRepo}" exists.)`);
+    }
+  };
+
   try {
     // 1. Get base branch SHA
     addLog(logEl, `Getting branch "${prBranch}"...`, 'info');
-    const refRes = await fetch(`${base}/git/refs/heads/${prBranch}`, { headers: authHeaders });
+    const refRes = await gfetch(`get branch "${prBranch}"`, `${base}/git/refs/heads/${prBranch}`, { headers: authHeaders });
     if (!refRes.ok) throw new Error(`Branch "${prBranch}" not found: HTTP ${refRes.status}. Check repo name and token permissions.`);
     const refData = await refRes.json();
     const refObj  = Array.isArray(refData) ? refData.find(r => r.ref === `refs/heads/${prBranch}`) : refData;
@@ -2466,7 +2477,7 @@ async function createPR() {
       addLog(logEl, `Creating blobs for ${imageFiles.length} image(s)...`, 'info');
       for (const { path: imgPath, blob, name } of imageFiles) {
         const b64 = await blobToBase64(blob);
-        const imgBlobRes = await fetch(`${base}/git/blobs`, {
+        const imgBlobRes = await gfetch(`create image blob (${name})`, `${base}/git/blobs`, {
           method: 'POST', headers: postHeaders,
           body: JSON.stringify({ content: b64, encoding: 'base64' }),
         });
@@ -2479,7 +2490,7 @@ async function createPR() {
     // Create markdown blob
     addLog(logEl, 'Creating markdown blob...', 'info');
     const content = btoa(unescape(encodeURIComponent(finalMd)));
-    const blobRes = await fetch(`${base}/git/blobs`, {
+    const blobRes = await gfetch('create markdown blob', `${base}/git/blobs`, {
       method: 'POST', headers: postHeaders,
       body: JSON.stringify({ content, encoding: 'base64' }),
     });
@@ -2489,13 +2500,13 @@ async function createPR() {
     addLog(logEl, `✓ Blob(s) created (${treeEntries.length} file${treeEntries.length > 1 ? 's' : ''})`, 'ok');
 
     // 3. Get base tree
-    const commitRes = await fetch(`${base}/git/commits/${baseSha}`, { headers: authHeaders });
+    const commitRes = await gfetch('get base commit', `${base}/git/commits/${baseSha}`, { headers: authHeaders });
     if (!commitRes.ok) throw new Error(`Commit fetch failed: HTTP ${commitRes.status}`);
     const baseTreeSha = (await commitRes.json()).tree.sha;
 
     // 4. Create tree
     addLog(logEl, 'Creating tree...', 'info');
-    const treeRes = await fetch(`${base}/git/trees`, {
+    const treeRes = await gfetch('create tree', `${base}/git/trees`, {
       method: 'POST', headers: postHeaders,
       body: JSON.stringify({ base_tree: baseTreeSha, tree: treeEntries }),
     });
@@ -2505,7 +2516,7 @@ async function createPR() {
 
     // 5. Create commit
     addLog(logEl, 'Creating commit...', 'info');
-    const newCommitRes = await fetch(`${base}/git/commits`, {
+    const newCommitRes = await gfetch('create commit', `${base}/git/commits`, {
       method: 'POST', headers: postHeaders,
       body: JSON.stringify({
         message: `blog: add ${filename}`,
@@ -2519,7 +2530,7 @@ async function createPR() {
 
     // 6. Create branch
     addLog(logEl, `Creating branch ${branchName}...`, 'info');
-    const branchRes = await fetch(`${base}/git/refs`, {
+    const branchRes = await gfetch('create branch', `${base}/git/refs`, {
       method: 'POST', headers: postHeaders,
       body: JSON.stringify({ ref: `refs/heads/${branchName}`, sha: newCommitSha }),
     });
@@ -2528,7 +2539,7 @@ async function createPR() {
 
     // 7. Open PR
     addLog(logEl, 'Opening PR...', 'info');
-    const prRes = await fetch(`${base}/pulls`, {
+    const prRes = await gfetch('create PR', `${base}/pulls`, {
       method: 'POST', headers: postHeaders,
       body: JSON.stringify({
         title: prTitle || `Blog: ${state.title}`,
