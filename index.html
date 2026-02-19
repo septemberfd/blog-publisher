@@ -2451,15 +2451,26 @@ async function createPR() {
     try {
       return await fetch(url, opts);
     } catch (e) {
-      throw new Error(`${step} — ${e.message}. (Check internet connection, token permissions, and that the repo "${ghOwner}/${ghRepo}" exists.)`);
+      throw new Error(`[${step}] Network error — ${e.message}. Check your internet connection.`);
     }
+  };
+  const ghCheck = async (res, step) => {
+    if (res.ok) return;
+    let body = '';
+    try { const j = await res.json(); body = j.message || JSON.stringify(j); } catch { body = await res.text().catch(() => ''); }
+    const hint =
+      res.status === 401 ? ' — Token invalid or expired.' :
+      res.status === 403 ? ' — Token lacks write permission (need "repo" scope for classic PAT, or "Contents: Write" for fine-grained PAT).' :
+      res.status === 404 ? ' — Not found or no write access. For org repos, check: (1) token has "Contents: Write" permission, (2) token is authorized for the org via SSO if required.' :
+      res.status === 422 ? ' — Validation error (branch may already exist?).' : '';
+    throw new Error(`[${step}] HTTP ${res.status}${hint}\n↳ GitHub says: ${body}`);
   };
 
   try {
     // 1. Get base branch SHA
     addLog(logEl, `Getting branch "${prBranch}"...`, 'info');
     const refRes = await gfetch(`get branch "${prBranch}"`, `${base}/git/refs/heads/${prBranch}`, { headers: authHeaders });
-    if (!refRes.ok) throw new Error(`Branch "${prBranch}" not found: HTTP ${refRes.status}. Check repo name and token permissions.`);
+    await ghCheck(refRes, `get branch "${prBranch}"`);
     const refData = await refRes.json();
     const refObj  = Array.isArray(refData) ? refData.find(r => r.ref === `refs/heads/${prBranch}`) : refData;
     if (!refObj) throw new Error(`Branch "${prBranch}" not found in response.`);
@@ -2481,7 +2492,7 @@ async function createPR() {
           method: 'POST', headers: postHeaders,
           body: JSON.stringify({ content: b64, encoding: 'base64' }),
         });
-        if (!imgBlobRes.ok) throw new Error(`Image blob failed (${name}): HTTP ${imgBlobRes.status}`);
+        await ghCheck(imgBlobRes, `create image blob (${name})`);
         treeEntries.push({ path: imgPath, mode: '100644', type: 'blob', sha: (await imgBlobRes.json()).sha });
         addLog(logEl, `✓ Image: ${name}`, 'ok');
       }
@@ -2494,14 +2505,14 @@ async function createPR() {
       method: 'POST', headers: postHeaders,
       body: JSON.stringify({ content, encoding: 'base64' }),
     });
-    if (!blobRes.ok) throw new Error(`Blob failed: HTTP ${blobRes.status}`);
+    await ghCheck(blobRes, 'create markdown blob');
     const blobData = await blobRes.json();
     treeEntries.push({ path: filePath, mode: '100644', type: 'blob', sha: blobData.sha });
     addLog(logEl, `✓ Blob(s) created (${treeEntries.length} file${treeEntries.length > 1 ? 's' : ''})`, 'ok');
 
     // 3. Get base tree
     const commitRes = await gfetch('get base commit', `${base}/git/commits/${baseSha}`, { headers: authHeaders });
-    if (!commitRes.ok) throw new Error(`Commit fetch failed: HTTP ${commitRes.status}`);
+    await ghCheck(commitRes, 'get base commit');
     const baseTreeSha = (await commitRes.json()).tree.sha;
 
     // 4. Create tree
@@ -2510,7 +2521,7 @@ async function createPR() {
       method: 'POST', headers: postHeaders,
       body: JSON.stringify({ base_tree: baseTreeSha, tree: treeEntries }),
     });
-    if (!treeRes.ok) throw new Error(`Tree failed: HTTP ${treeRes.status}`);
+    await ghCheck(treeRes, 'create tree');
     const treeSha = (await treeRes.json()).sha;
     addLog(logEl, '✓ Tree created', 'ok');
 
@@ -2524,7 +2535,7 @@ async function createPR() {
         parents: [baseSha],
       }),
     });
-    if (!newCommitRes.ok) throw new Error(`Commit failed: HTTP ${newCommitRes.status}`);
+    await ghCheck(newCommitRes, 'create commit');
     const newCommitSha = (await newCommitRes.json()).sha;
     addLog(logEl, '✓ Commit created', 'ok');
 
@@ -2534,7 +2545,7 @@ async function createPR() {
       method: 'POST', headers: postHeaders,
       body: JSON.stringify({ ref: `refs/heads/${branchName}`, sha: newCommitSha }),
     });
-    if (!branchRes.ok) throw new Error(`Branch failed: HTTP ${branchRes.status}`);
+    await ghCheck(branchRes, 'create branch');
     addLog(logEl, '✓ Branch created', 'ok');
 
     // 7. Open PR
@@ -2548,7 +2559,7 @@ async function createPR() {
         body: `Auto-published via Blog Publisher.\n\n**File:** \`${filePath}\`\n**Author:** ${state.author}`,
       }),
     });
-    if (!prRes.ok) throw new Error(`PR failed: HTTP ${prRes.status} — ${await prRes.text()}`);
+    await ghCheck(prRes, 'create PR');
     const prData = await prRes.json();
     addLog(logEl, '✓ PR created!', 'ok');
 
