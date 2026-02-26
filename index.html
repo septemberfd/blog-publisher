@@ -3,11 +3,13 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Milvus Blog Publisher</title>
+<title>Blog Publisher</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/turndown/7.1.2/turndown.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/mammoth/mammoth.browser.min.js"></script>
 <style>
-  @import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=DM+Sans:wght@300;400;500;600&display=swap');
+  @import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=DM+Sans:wght@300;400;500;600&family=Space+Grotesk:wght@600;700&display=swap');
 
   :root {
     --bg: #0d0f12;
@@ -39,48 +41,44 @@
     min-height: 100vh;
   }
 
-  /* Header */
-  .header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 0 32px;
-    height: 56px;
+  .hero {
+    text-align: center;
+    padding: 44px 24px 32px;
     border-bottom: 1px solid var(--border);
     background: var(--surface);
-    position: sticky;
-    top: 0;
-    z-index: 100;
   }
 
-  .logo {
+  .hero-title {
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 42px;
+    font-weight: 700;
+    color: var(--text);
+    letter-spacing: -0.02em;
+    margin-bottom: 12px;
+  }
+
+  .hero-title span { color: var(--accent); }
+
+  .hero-desc {
+    font-size: 15px;
+    color: var(--text2);
+    max-width: 520px;
+    margin: 0 auto 24px;
+    line-height: 1.65;
+  }
+
+  .hero-actions {
     display: flex;
     align-items: center;
-    gap: 10px;
-    font-family: var(--mono);
-    font-size: 13px;
-    color: var(--accent);
-    letter-spacing: 0.05em;
-  }
-
-  .logo-dot {
-    width: 8px; height: 8px;
-    border-radius: 50%;
-    background: var(--accent);
-    box-shadow: 0 0 8px var(--accent);
-    animation: pulse 2s ease-in-out infinite;
-  }
-
-  @keyframes pulse {
-    0%, 100% { opacity: 1; transform: scale(1); }
-    50% { opacity: 0.6; transform: scale(0.85); }
+    justify-content: center;
+    gap: 14px;
   }
 
   .settings-btn {
     background: var(--surface2);
     border: 1px solid var(--border2);
     color: var(--text2);
-    padding: 6px 14px;
+    padding: 7px 16px;
     border-radius: 6px;
     cursor: pointer;
     font-family: var(--sans);
@@ -93,18 +91,27 @@
 
   .settings-btn:hover { color: var(--text); border-color: var(--accent); }
 
-  /* Main layout */
+  .credit-link {
+    font-size: 12px;
+    color: var(--text3);
+    text-decoration: none;
+    transition: color 0.15s;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+  }
+
+  .credit-link:hover { color: var(--accent); }
+
   .main {
     max-width: 860px;
     margin: 0 auto;
     padding: 40px 24px 80px;
   }
 
-  /* Steps */
   .steps {
     display: flex;
     align-items: center;
-    gap: 0;
     margin-bottom: 40px;
   }
 
@@ -152,12 +159,7 @@
   .step.done .step-label { color: var(--text2); }
   .step.done + .step-line { background: var(--success); }
 
-  /* Panels */
-  .panel {
-    display: none;
-    animation: fadeIn 0.25s ease;
-  }
-
+  .panel { display: none; animation: fadeIn 0.25s ease; }
   .panel.active { display: block; }
 
   @keyframes fadeIn {
@@ -165,7 +167,6 @@
     to { opacity: 1; transform: translateY(0); }
   }
 
-  /* Cards */
   .card {
     background: var(--surface);
     border: 1px solid var(--border);
@@ -183,11 +184,10 @@
     margin-bottom: 20px;
   }
 
-  /* Upload zone */
   .upload-zone {
     border: 2px dashed var(--border2);
     border-radius: var(--radius);
-    padding: 60px 40px;
+    padding: 28px 32px;
     text-align: center;
     cursor: pointer;
     transition: all 0.2s;
@@ -199,22 +199,28 @@
     background: rgba(0, 212, 170, 0.05);
   }
 
-  .upload-icon {
-    font-size: 36px;
-    margin-bottom: 12px;
+  .upload-zone.uploaded {
+    border-color: var(--success);
+    border-style: solid;
+    background: rgba(48, 209, 88, 0.05);
+    cursor: pointer;
   }
 
-  .upload-title {
-    font-size: 16px;
-    font-weight: 500;
-    color: var(--text);
-    margin-bottom: 6px;
-  }
+  .upload-icon { font-size: 28px; margin-bottom: 8px; }
+  .upload-title { font-size: 15px; font-weight: 500; color: var(--text); margin-bottom: 4px; }
+  .upload-sub { font-size: 13px; color: var(--text2); margin-bottom: 14px; }
 
-  .upload-sub {
-    font-size: 13px;
-    color: var(--text2);
-    margin-bottom: 20px;
+  .upload-success-name {
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--success);
+    background: rgba(48, 209, 88, 0.1);
+    border: 1px solid rgba(48, 209, 88, 0.2);
+    border-radius: 6px;
+    padding: 6px 14px;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
   }
 
   .upload-hint {
@@ -229,10 +235,42 @@
     text-align: left;
   }
 
-  /* Form elements */
-  .field {
-    margin-bottom: 16px;
+  /* Parsed doc summary */
+  .doc-summary {
+    display: flex;
+    gap: 20px;
+    flex-wrap: wrap;
+    margin-bottom: 20px;
   }
+
+  .doc-stat {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 12px 16px;
+    flex: 1;
+    min-width: 140px;
+  }
+
+  .doc-stat-label {
+    font-size: 10px;
+    font-weight: 600;
+    color: var(--text3);
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    margin-bottom: 4px;
+  }
+
+  .doc-stat-value {
+    font-family: var(--mono);
+    font-size: 13px;
+    color: var(--text);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .field { margin-bottom: 16px; }
 
   .field label {
     display: block;
@@ -243,7 +281,7 @@
     font-family: var(--mono);
   }
 
-  .field input, .field textarea, .field select {
+  .field input, .field textarea {
     width: 100%;
     background: var(--surface2);
     border: 1px solid var(--border2);
@@ -256,15 +294,63 @@
     outline: none;
   }
 
-  .field input:focus, .field textarea:focus {
-    border-color: var(--accent);
+  .field input:focus, .field textarea:focus, .field select:focus { border-color: var(--accent); }
+
+  .field select {
+    width: 100%;
+    background: var(--surface2);
+    border: 1px solid var(--border2);
+    border-radius: 6px;
+    padding: 10px 12px;
+    color: var(--text);
+    font-family: var(--sans);
+    font-size: 14px;
+    transition: border-color 0.15s;
+    outline: none;
+    cursor: pointer;
   }
 
-  .field textarea {
-    resize: vertical;
-    min-height: 80px;
-    font-size: 13px;
-    line-height: 1.6;
+  .field-checkbox {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 0;
+  }
+  .field-checkbox input[type="checkbox"] {
+    width: 16px; height: 16px;
+    accent-color: var(--accent);
+    cursor: pointer;
+  }
+  .field-checkbox label {
+    margin: 0;
+    cursor: pointer;
+  }
+
+  .field-hint {
+    font-size: 11px;
+    color: var(--text3);
+    margin-top: 4px;
+    font-family: var(--mono);
+  }
+  .seo-counter {
+    font-size: 11px;
+    color: var(--text3);
+    margin-top: 4px;
+    font-family: var(--mono);
+    text-align: right;
+  }
+  .seo-counter.over {
+    color: var(--error);
+    font-weight: 600;
+  }
+  .field.seo-over input,
+  .field.seo-over textarea {
+    border-color: var(--error) !important;
+    color: var(--error);
+    background: rgba(255, 95, 87, 0.06);
+  }
+  .field.seo-over label {
+    color: var(--error);
   }
 
   .field-row {
@@ -273,7 +359,6 @@
     gap: 12px;
   }
 
-  /* Image preview */
   .images-grid {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
@@ -291,18 +376,11 @@
   .image-card.uploaded { border-color: var(--success); }
   .image-card.uploading { border-color: var(--warn); }
   .image-card.error { border-color: var(--error); }
+  .image-card.is-cover { border-color: var(--accent); box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 25%, transparent); }
 
-  .image-preview {
-    width: 100%;
-    height: 120px;
-    object-fit: cover;
-    display: block;
-    background: var(--bg);
-  }
+  .image-preview { width: 100%; height: 120px; object-fit: cover; display: block; background: var(--bg); }
 
-  .image-info {
-    padding: 10px;
-  }
+  .image-info { padding: 10px; }
 
   .image-name {
     font-family: var(--mono);
@@ -326,8 +404,52 @@
   .image-card.uploaded .image-status { color: var(--success); }
   .image-card.uploading .image-status { color: var(--warn); }
   .image-card.error .image-status { color: var(--error); }
+  .image-card.is-cover .image-status { color: var(--accent); }
+  .cover-badge {
+    display: none; position: absolute; top: 6px; left: 6px;
+    background: var(--accent); color: #fff; font-size: 10px; font-weight: 700;
+    padding: 2px 6px; border-radius: 4px; letter-spacing: .5px;
+  }
+  .image-card.is-cover .cover-badge { display: block; }
+  .image-card { position: relative; }
+  .set-cover-btn {
+    margin-top: 6px; width: 100%;
+    padding: 4px 0; font-size: 11px;
+    background: none; border: 1px solid var(--border);
+    border-radius: 4px; color: var(--text3); cursor: pointer;
+  }
+  .set-cover-btn:hover { border-color: var(--accent); color: var(--accent); }
+  .image-card.is-cover .set-cover-btn {
+    background: color-mix(in srgb, var(--accent) 12%, transparent);
+    border-color: var(--accent); color: var(--accent);
+  }
 
-  /* Markdown preview */
+  .image-size {
+    font-size: 10px;
+    color: var(--text3);
+    margin-top: 3px;
+  }
+  .image-size.large { color: var(--warn); font-weight: 600; }
+
+  .compress-btn {
+    margin-top: 5px; width: 100%;
+    padding: 4px 0; font-size: 11px;
+    background: none; border: 1px solid var(--warn);
+    border-radius: 4px; color: var(--warn); cursor: pointer;
+    transition: all 0.15s;
+  }
+  .compress-btn:hover { background: color-mix(in srgb, var(--warn) 12%, transparent); }
+  .compress-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+  .bulk-compress-bar {
+    display: flex; align-items: center; gap: 10px;
+    padding: 10px 14px; margin-bottom: 14px;
+    background: color-mix(in srgb, var(--warn) 7%, transparent);
+    border: 1px solid color-mix(in srgb, var(--warn) 28%, transparent);
+    border-radius: 8px;
+  }
+  .bulk-compress-bar .warn-text { font-size: 12px; color: var(--warn); flex: 1; }
+
   .md-preview {
     background: var(--surface2);
     border: 1px solid var(--border);
@@ -337,13 +459,264 @@
     font-size: 12px;
     line-height: 1.8;
     color: var(--text2);
-    max-height: 300px;
+    max-height: 320px;
     overflow-y: auto;
     white-space: pre-wrap;
     word-break: break-word;
   }
 
-  /* Buttons */
+  /* ── Preview tabs ───────────────────────────────────────── */
+  .preview-tabs {
+    display: flex;
+    gap: 0;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 0;
+  }
+  .preview-tab {
+    padding: 6px 16px;
+    font-size: 12px;
+    font-weight: 500;
+    background: none;
+    border: none;
+    border-bottom: 2px solid transparent;
+    color: var(--text3);
+    cursor: pointer;
+    margin-bottom: -1px;
+    transition: color .15s, border-color .15s;
+  }
+  .preview-tab:hover { color: var(--text1); }
+  .preview-tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+
+  /* ── Rendered markdown preview ──────────────────────────── */
+  .rendered-preview {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-top: none;
+    border-radius: 0 0 8px 8px;
+    padding: 24px 28px;
+    max-height: 520px;
+    overflow-y: auto;
+    font-size: 14px;
+    line-height: 1.75;
+    color: var(--text1);
+    word-break: break-word;
+  }
+  .rendered-preview h1,.rendered-preview h2,.rendered-preview h3,
+  .rendered-preview h4,.rendered-preview h5,.rendered-preview h6 {
+    font-weight: 700; margin: 1.4em 0 .5em; line-height: 1.3;
+  }
+  .rendered-preview h1 { font-size: 1.7em; }
+  .rendered-preview h2 { font-size: 1.35em; border-bottom: 1px solid var(--border); padding-bottom: .3em; }
+  .rendered-preview h3 { font-size: 1.1em; }
+  .rendered-preview p  { margin: .75em 0; }
+  .rendered-preview a  { color: var(--accent); text-decoration: none; }
+  .rendered-preview a:hover { text-decoration: underline; }
+  .rendered-preview strong { font-weight: 700; }
+  .rendered-preview em     { font-style: italic; }
+  .rendered-preview ul,.rendered-preview ol { padding-left: 1.5em; margin: .6em 0; }
+  .rendered-preview li { margin: .25em 0; }
+  .rendered-preview blockquote {
+    border-left: 3px solid var(--border); margin: 1em 0;
+    padding: .4em 1em; color: var(--text3);
+  }
+  .rendered-preview code {
+    font-family: var(--mono); font-size: .85em;
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 4px; padding: 1px 5px;
+  }
+  .rendered-preview pre {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 8px; padding: 14px 16px; overflow-x: auto; margin: 1em 0;
+  }
+  .rendered-preview pre code {
+    background: none; border: none; padding: 0; font-size: 12px; line-height: 1.6;
+  }
+  .rendered-preview img {
+    max-width: 100%; border-radius: 6px; margin: .5em 0; display: block;
+  }
+  .rendered-preview table {
+    border-collapse: collapse; width: 100%; margin: 1em 0;
+  }
+  .rendered-preview th,.rendered-preview td {
+    border: 1px solid var(--border); padding: 6px 12px; font-size: 13px;
+  }
+  .rendered-preview th { background: var(--surface); font-weight: 600; }
+  .preview-pane {
+    border: 1px solid var(--border); border-radius: 0 0 8px 8px;
+    border-top: none;
+  }
+  .md-preview.pane {
+    border-radius: 0 0 8px 8px;
+    border-top: none;
+    max-height: 520px;
+  }
+  textarea.md-preview.pane {
+    width: 100%;
+    min-height: 320px;
+    resize: vertical;
+    color: var(--text1);
+    outline: none;
+    line-height: 1.6;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+  }
+
+  /* ── Image mode toggle ─────────────────────────────── */
+  .mode-toggle {
+    display: flex; gap: 0; background: var(--surface2);
+    border: 1px solid var(--border); border-radius: 8px;
+    padding: 4px; width: fit-content; margin-bottom: 16px;
+  }
+  .mode-btn {
+    padding: 7px 18px; font-size: 13px; font-weight: 500;
+    background: none; border: none; border-radius: 6px;
+    color: var(--text3); cursor: pointer; transition: all .15s;
+  }
+  .mode-btn:hover { color: var(--text1); }
+  .mode-btn.active {
+    background: var(--surface); color: var(--text1);
+    box-shadow: 0 1px 4px rgba(0,0,0,.15);
+  }
+  .github-mode-note {
+    background: color-mix(in srgb, var(--accent) 8%, var(--surface2));
+    border: 1px solid color-mix(in srgb, var(--accent) 30%, var(--border));
+    border-radius: 8px; padding: 12px 16px;
+    font-size: 13px; color: var(--text2); margin-bottom: 16px;
+  }
+
+  /* ── Cover image upload zone ───────────────────────── */
+  .cover-drop-zone {
+    border: 2px dashed var(--border);
+    border-radius: 10px;
+    padding: 20px;
+    text-align: center;
+    cursor: pointer;
+    transition: border-color .2s, background .2s;
+    min-height: 100px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--surface2);
+    position: relative;
+    overflow: hidden;
+  }
+  .cover-drop-zone:hover, .cover-drop-zone.drag-over {
+    border-color: var(--accent);
+    background: color-mix(in srgb, var(--accent) 5%, var(--surface2));
+  }
+  .cover-drop-zone img {
+    max-height: 180px; max-width: 100%;
+    border-radius: 6px; object-fit: contain; display: block; margin: 0 auto;
+  }
+  .cover-url-chip {
+    display: inline-block;
+    background: var(--surface2); border: 1px solid var(--border);
+    border-radius: 6px; padding: 6px 12px;
+    font-family: var(--mono); font-size: 11px; color: var(--text2);
+    word-break: break-all; margin-top: 8px;
+  }
+
+  /* Fullscreen button in tab bar */
+  .preview-fullscreen-btn {
+    margin-left: auto;
+    padding: 4px 10px;
+    font-size: 13px;
+    background: none;
+    border: none;
+    color: var(--text3);
+    cursor: pointer;
+    border-radius: 4px;
+    line-height: 1;
+  }
+  .preview-fullscreen-btn:hover { background: var(--surface2); color: var(--text1); }
+
+  /* ── Fullscreen preview modal ──────────────────────────── */
+  .preview-modal-backdrop {
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,.55);
+    z-index: 1000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+  }
+  .preview-modal-box {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    width: 100%; max-width: 860px;
+    max-height: 92vh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    box-shadow: 0 24px 64px rgba(0,0,0,.4);
+  }
+  .preview-modal-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 20px;
+    border-bottom: 1px solid var(--border);
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text2);
+    flex-shrink: 0;
+  }
+  .preview-modal-close {
+    background: none; border: none; color: var(--text3);
+    font-size: 18px; cursor: pointer; padding: 2px 6px; border-radius: 4px;
+  }
+  .preview-modal-close:hover { background: var(--surface2); color: var(--text1); }
+  .preview-modal-body {
+    flex: 1; overflow-y: auto;
+    padding: 32px 40px;
+    font-size: 15px;
+    line-height: 1.8;
+    color: var(--text1);
+    word-break: break-word;
+  }
+  /* reuse rendered-preview prose styles inside modal */
+  .preview-modal-body h1,.preview-modal-body h2,.preview-modal-body h3,
+  .preview-modal-body h4,.preview-modal-body h5,.preview-modal-body h6 {
+    font-weight: 700; margin: 1.4em 0 .5em; line-height: 1.3;
+  }
+  .preview-modal-body h1 { font-size: 1.9em; }
+  .preview-modal-body h2 { font-size: 1.4em; border-bottom: 1px solid var(--border); padding-bottom: .3em; }
+  .preview-modal-body h3 { font-size: 1.15em; }
+  .preview-modal-body p  { margin: .8em 0; }
+  .preview-modal-body a  { color: var(--accent); text-decoration: none; }
+  .preview-modal-body a:hover { text-decoration: underline; }
+  .preview-modal-body strong { font-weight: 700; }
+  .preview-modal-body em     { font-style: italic; }
+  .preview-modal-body ul,.preview-modal-body ol { padding-left: 1.6em; margin: .6em 0; }
+  .preview-modal-body li { margin: .3em 0; }
+  .preview-modal-body blockquote {
+    border-left: 3px solid var(--border); margin: 1em 0;
+    padding: .4em 1em; color: var(--text3);
+  }
+  .preview-modal-body code {
+    font-family: var(--mono); font-size: .85em;
+    background: var(--surface2); border: 1px solid var(--border);
+    border-radius: 4px; padding: 1px 5px;
+  }
+  .preview-modal-body pre {
+    background: var(--surface2); border: 1px solid var(--border);
+    border-radius: 8px; padding: 16px 18px; overflow-x: auto; margin: 1em 0;
+  }
+  .preview-modal-body pre code {
+    background: none; border: none; padding: 0; font-size: 12.5px; line-height: 1.6;
+  }
+  .preview-modal-body img {
+    max-width: 100%; border-radius: 6px; margin: .6em 0; display: block;
+  }
+  .preview-modal-body table {
+    border-collapse: collapse; width: 100%; margin: 1em 0;
+  }
+  .preview-modal-body th,.preview-modal-body td {
+    border: 1px solid var(--border); padding: 7px 14px; font-size: 14px;
+  }
+  .preview-modal-body th { background: var(--surface2); font-weight: 600; }
+
   .btn {
     display: inline-flex;
     align-items: center;
@@ -360,35 +733,14 @@
     text-decoration: none;
   }
 
-  .btn-primary {
-    background: var(--accent);
-    color: #000;
-  }
-
+  .btn-primary { background: var(--accent); color: #000; }
   .btn-primary:hover:not(:disabled) { background: #00f0c0; }
-
-  .btn-secondary {
-    background: var(--surface2);
-    border: 1px solid var(--border2);
-    color: var(--text);
-  }
-
+  .btn-secondary { background: var(--surface2); border: 1px solid var(--border2); color: var(--text); }
   .btn-secondary:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); }
-
-  .btn-ghost {
-    background: transparent;
-    border: 1px solid var(--border2);
-    color: var(--text2);
-  }
-
+  .btn-ghost { background: transparent; border: 1px solid var(--border2); color: var(--text2); }
   .btn-ghost:hover { color: var(--text); border-color: var(--text2); }
-
   .btn:disabled { opacity: 0.4; cursor: not-allowed; }
-
-  .btn-lg {
-    padding: 13px 28px;
-    font-size: 15px;
-  }
+  .btn-lg { padding: 13px 28px; font-size: 15px; }
 
   .actions {
     display: flex;
@@ -397,7 +749,6 @@
     margin-top: 24px;
   }
 
-  /* Status / alerts */
   .alert {
     padding: 12px 16px;
     border-radius: 8px;
@@ -413,7 +764,6 @@
   .alert-warn { background: rgba(255, 179, 64, 0.1); border: 1px solid rgba(255, 179, 64, 0.3); color: var(--warn); }
   .alert-error { background: rgba(255, 95, 87, 0.1); border: 1px solid rgba(255, 95, 87, 0.3); color: var(--error); }
 
-  /* Log */
   .log {
     background: var(--bg);
     border: 1px solid var(--border);
@@ -432,7 +782,6 @@
   .log-line.err { color: var(--error); }
   .log-line.info { color: var(--accent2); }
 
-  /* Settings modal */
   .modal-bg {
     display: none;
     position: fixed;
@@ -452,7 +801,7 @@
     border-radius: 14px;
     padding: 32px;
     width: 100%;
-    max-width: 540px;
+    max-width: 520px;
     max-height: 80vh;
     overflow-y: auto;
     animation: slideUp 0.2s ease;
@@ -470,11 +819,7 @@
     margin-bottom: 24px;
   }
 
-  .modal-title {
-    font-size: 16px;
-    font-weight: 600;
-    color: var(--text);
-  }
+  .modal-title { font-size: 16px; font-weight: 600; color: var(--text); }
 
   .close-btn {
     background: var(--surface2);
@@ -492,68 +837,8 @@
 
   .close-btn:hover { color: var(--text); }
 
-  /* Tag */
-  .tag {
-    display: inline-block;
-    padding: 2px 8px;
-    border-radius: 4px;
-    font-size: 11px;
-    font-weight: 600;
-    font-family: var(--mono);
-    background: rgba(0, 212, 170, 0.12);
-    color: var(--accent);
-    border: 1px solid rgba(0, 212, 170, 0.25);
-  }
+  .divider { height: 1px; background: var(--border); margin: 20px 0; }
 
-  /* Success screen */
-  .success-screen {
-    text-align: center;
-    padding: 60px 40px;
-  }
-
-  .success-icon {
-    font-size: 56px;
-    margin-bottom: 16px;
-  }
-
-  .success-title {
-    font-size: 24px;
-    font-weight: 600;
-    margin-bottom: 8px;
-    color: var(--success);
-  }
-
-  .success-sub {
-    color: var(--text2);
-    margin-bottom: 28px;
-  }
-
-  .pr-link {
-    display: inline-flex;
-    align-items: center;
-    gap: 8px;
-    background: var(--surface2);
-    border: 1px solid var(--border2);
-    border-radius: 8px;
-    padding: 12px 20px;
-    color: var(--accent2);
-    text-decoration: none;
-    font-family: var(--mono);
-    font-size: 13px;
-    transition: all 0.15s;
-    margin-bottom: 24px;
-  }
-
-  .pr-link:hover { border-color: var(--accent2); background: rgba(0, 150, 255, 0.1); }
-
-  /* Section divider */
-  .divider {
-    height: 1px;
-    background: var(--border);
-    margin: 20px 0;
-  }
-
-  /* Progress bar */
   .progress {
     height: 3px;
     background: var(--border);
@@ -602,19 +887,43 @@
     font-family: var(--mono);
     font-weight: 500;
   }
+
+  .success-screen { text-align: center; padding: 60px 40px; }
+  .success-icon { font-size: 56px; margin-bottom: 16px; }
+  .success-title { font-size: 24px; font-weight: 600; margin-bottom: 8px; color: var(--success); }
+  .success-sub { color: var(--text2); margin-bottom: 28px; }
+
+  .pr-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    background: var(--surface2);
+    border: 1px solid var(--border2);
+    border-radius: 8px;
+    padding: 12px 20px;
+    color: var(--accent2);
+    text-decoration: none;
+    font-family: var(--mono);
+    font-size: 13px;
+    transition: all 0.15s;
+    margin-bottom: 24px;
+  }
+
+  .pr-link:hover { border-color: var(--accent2); background: rgba(0, 150, 255, 0.1); }
 </style>
 </head>
 <body>
 
-<!-- Header -->
-<header class="header">
-  <div class="logo">
-    <div class="logo-dot"></div>
-    MILVUS BLOG PUBLISHER
+<header class="hero">
+  <h1 class="hero-title">Blog <span>Publisher</span></h1>
+  <p class="hero-desc">Convert Google Docs or Feishu exports to Markdown, upload images to Strapi or GitHub, and open a pull request — all from your browser.</p>
+  <div class="hero-actions">
+    <button class="settings-btn" onclick="openSettings()">⚙ Settings</button>
+    <a href="https://github.com/septemberfd/blog-publisher" target="_blank" rel="noopener" class="credit-link">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0 0 24 12c0-6.63-5.37-12-12-12z"/></svg>
+      Created by septemberfd
+    </a>
   </div>
-  <button class="settings-btn" onclick="openSettings()">
-    ⚙ Settings
-  </button>
 </header>
 
 <!-- Settings Modal -->
@@ -640,40 +949,40 @@
       <label>GITHUB TOKEN</label>
       <input type="password" id="s_ghToken" placeholder="ghp_..." />
     </div>
-    <div class="field-row">
-      <div class="field">
-        <label>GITHUB OWNER</label>
-        <input type="text" id="s_ghOwner" placeholder="milvus-io" />
-      </div>
-      <div class="field">
-        <label>GITHUB REPO</label>
-        <input type="text" id="s_ghRepo" placeholder="milvus-io.github.io" />
-      </div>
+    <div class="field">
+      <label>DEFAULT TARGET REPO</label>
+      <input type="text" id="s_ghRepo" placeholder="milvus-io/community" />
+      <div class="field-hint">owner/repo — can be overridden each time you publish</div>
     </div>
     <div class="field-row">
       <div class="field">
-        <label>BASE BRANCH</label>
+        <label>DEFAULT BASE BRANCH</label>
         <input type="text" id="s_ghBranch" placeholder="master" />
       </div>
       <div class="field">
-        <label>BLOG PATH</label>
-        <input type="text" id="s_ghPath" placeholder="blog" />
+        <label>DEFAULT BLOG PATH</label>
+        <input type="text" id="s_ghPath" placeholder="blog/en" />
       </div>
     </div>
 
     <div class="divider"></div>
 
-    <div style="display:flex; gap: 10px; justify-content: flex-end;">
-      <button class="btn btn-ghost" onclick="closeSettings()">Cancel</button>
-      <button class="btn btn-primary" onclick="saveSettings()">Save Settings</button>
+    <div style="display:flex; gap: 10px; justify-content: space-between; align-items:center;">
+      <div>
+        <button class="btn btn-ghost" style="font-size:11px;" onclick="clearImageCache()">🗑 Clear All Cache</button>
+        <div id="cacheStats" style="font-size:11px; color:var(--text3); margin-top:4px; padding-left:2px;">—</div>
+      </div>
+      <div style="display:flex; gap:10px;">
+        <button class="btn btn-ghost" onclick="closeSettings()">Cancel</button>
+        <button class="btn btn-primary" onclick="saveSettings()">Save</button>
+      </div>
     </div>
   </div>
 </div>
 
-<!-- Main -->
 <main class="main">
 
-  <!-- Steps indicator -->
+  <!-- 3-step indicator -->
   <div class="steps">
     <div class="step active" id="step-1">
       <div class="step-num">1</div>
@@ -682,16 +991,11 @@
     <div class="step-line"></div>
     <div class="step" id="step-2">
       <div class="step-num">2</div>
-      <div class="step-label">Review</div>
+      <div class="step-label">Images</div>
     </div>
     <div class="step-line"></div>
     <div class="step" id="step-3">
       <div class="step-num">3</div>
-      <div class="step-label">Images</div>
-    </div>
-    <div class="step-line"></div>
-    <div class="step" id="step-4">
-      <div class="step-num">4</div>
       <div class="step-label">Publish</div>
     </div>
   </div>
@@ -699,106 +1003,181 @@
   <!-- Panel 1: Upload -->
   <div class="panel active" id="panel-1">
     <div class="card">
-      <div class="card-title">Step 1 — Upload Google Doc</div>
+      <div class="card-title">Step 1 — Upload your Markdown</div>
       <p class="section-subtitle">
-        In Google Docs, go to <strong style="color:var(--text)">File → Download → Web Page (.html, zipped)</strong>, then upload the zip file here.
+        Upload your <strong style="color:var(--text)">.md file</strong> — the YAML frontmatter and body are used as-is.<br>
+        Or upload a <strong style="color:var(--text)">.zip</strong> (Google Docs "Web Page" export) or <strong style="color:var(--text)">.docx</strong> (Feishu / Word).
       </p>
 
-      <div class="upload-zone" id="uploadZone" onclick="document.getElementById('fileInput').click()"
+      <div class="upload-zone" id="uploadZone"
+           onclick="document.getElementById('fileInput').click()"
            ondragover="event.preventDefault(); this.classList.add('drag-over')"
            ondragleave="this.classList.remove('drag-over')"
            ondrop="handleDrop(event)">
-        <div class="upload-icon">📦</div>
-        <div class="upload-title">Drop your zip file here</div>
-        <div class="upload-sub">or click to browse</div>
-        <div class="upload-hint">
-          File → Download → Web Page (.html, zipped)<br>
-          Make sure your doc has [PUBLISH] and [CONTENT] markers
+        <div id="uploadZoneDefault">
+          <div class="upload-icon">📄</div>
+          <div class="upload-title">Drop your file here</div>
+          <div class="upload-sub">or click to browse</div>
+          <div class="upload-hint">
+            Accepted: .md · .zip (Google Docs / Feishu export) · .docx (Feishu / Word)<br>
+            .md files are passed through unchanged — write your frontmatter directly in the doc
+          </div>
+        </div>
+        <div id="uploadZoneSuccess" style="display:none;">
+          <div class="upload-icon">✅</div>
+          <div class="upload-title" style="color:var(--success)">File uploaded</div>
+          <div class="upload-sub" style="margin-bottom:10px;">Click or drop to replace</div>
+          <div class="upload-success-name" id="uploadedFileName">—</div>
         </div>
       </div>
-      <input type="file" id="fileInput" accept=".zip" onchange="handleFileSelect(event)">
+      <input type="file" id="fileInput" accept=".md,.zip,.docx" onchange="handleFileSelect(event)">
     </div>
 
-    <div class="card" style="border-color: rgba(0,212,170,0.2); background: rgba(0,212,170,0.03);">
-      <div class="card-title">Document format guide</div>
-      <p class="section-subtitle">Structure your Google Doc like this — the tool will ignore everything outside the markers:</p>
-      <div class="md-preview" style="font-size: 11px;">参考: https://github.com/...        ← ignored
-source link: https://...             ← ignored
-Optional titles: ...                 ← ignored
-
-[PUBLISH]
-meta_title: Your Blog Title
-meta_description: A short description...
-author: Min Yin
-keywords: Milvus, RAG, vector search
-url: my-blog-post-slug
-tags: Engineering
-[/PUBLISH]
-
-[CONTENT]
-# Your blog title here
-
-Introduction paragraph...
-
-## Section heading
-
-More content...
-[/CONTENT]</div>
-    </div>
-  </div>
-
-  <!-- Panel 2: Review -->
-  <div class="panel" id="panel-2">
-    <div class="card">
-      <div class="card-title">Step 2 — Review Meta Fields</div>
-      <p class="section-subtitle">Auto-filled from your document. Edit anything that needs adjusting.</p>
-
-      <div class="field-row">
+    <!-- Shown after a file is parsed -->
+    <div id="parsedSummary" style="display:none;">
+      <div class="card">
+        <div class="card-title">Parsed Document</div>
+        <div class="doc-summary">
+          <div class="doc-stat">
+            <div class="doc-stat-label">Filename</div>
+            <div class="doc-stat-value" id="sum_filename">—</div>
+          </div>
+          <div class="doc-stat">
+            <div class="doc-stat-label">Images</div>
+            <div class="doc-stat-value" id="sum_images">0</div>
+          </div>
+          <div class="doc-stat">
+            <div class="doc-stat-label">Words</div>
+            <div class="doc-stat-value" id="sum_words">0</div>
+          </div>
+        </div>
+        <div class="card-title" style="margin-top:16px; margin-bottom:6px;">Blog Metadata</div>
         <div class="field">
-          <label>META TITLE *</label>
-          <input type="text" id="f_title" placeholder="Blog title" />
+          <label>TITLE</label>
+          <input type="text" id="fm_title" placeholder="Blog post title" />
         </div>
         <div class="field">
-          <label>AUTHOR *</label>
-          <input type="text" id="f_author" placeholder="Author name" />
+          <label>ID (SLUG)</label>
+          <input type="text" id="fm_id" placeholder="my-blog-post.md" />
+          <div class="field-hint">Auto-generated from title. Edit to shorten.</div>
         </div>
-      </div>
-      <div class="field">
-        <label>META DESCRIPTION</label>
-        <textarea id="f_desc" rows="2" placeholder="Short description for SEO..."></textarea>
-      </div>
-      <div class="field-row">
-        <div class="field">
-          <label>URL SLUG *</label>
-          <input type="text" id="f_url" placeholder="my-blog-post-slug" />
+        <div class="field-row" style="grid-template-columns: 1fr 1fr 1fr;">
+          <div class="field">
+            <label>AUTHOR</label>
+            <input type="text" id="fm_author" placeholder="Author Name" />
+          </div>
+          <div class="field">
+            <label>DATE</label>
+            <input type="text" id="fm_date" placeholder="2026-1-19" />
+          </div>
+          <div class="field">
+            <label>TAG</label>
+            <select id="fm_tag">
+              <option value="Engineering">Engineering</option>
+              <option value="Announcements">Announcements</option>
+              <option value="Tutorials">Tutorials</option>
+              <option value="Use Cases">Use Cases</option>
+            </select>
+          </div>
         </div>
         <div class="field">
           <label>TAGS</label>
-          <input type="text" id="f_tags" placeholder="Engineering, Tutorial" />
+          <input type="text" id="fm_tags" value="Milvus, vector database" />
+        </div>
+        <div class="field">
+          <label>META TITLE</label>
+          <input type="text" id="fm_meta_title" placeholder="SEO title — keep under 60 chars" />
+        </div>
+        <div class="field">
+          <label>META KEYWORDS</label>
+          <input type="text" id="fm_meta_keywords" placeholder="keyword1, keyword2, ..." />
+        </div>
+        <div class="field">
+          <label>DESCRIPTION</label>
+          <textarea id="fm_desc" rows="3" placeholder="SEO description — keep under 155 chars"></textarea>
+        </div>
+        <div class="field-row">
+          <div class="field-checkbox">
+            <input type="checkbox" id="fm_recommend" />
+            <label for="fm_recommend">Recommend</label>
+          </div>
+          <div class="field-checkbox">
+            <input type="checkbox" id="fm_publishToMedium" checked />
+            <label for="fm_publishToMedium">Publish to Medium</label>
+          </div>
         </div>
       </div>
-      <div class="field">
-        <label>KEYWORDS</label>
-        <input type="text" id="f_keywords" placeholder="Milvus, RAG, vector search" />
+
+      <div class="actions" style="margin-top:0;">
+        <div></div>
+        <button class="btn btn-primary btn-lg" onclick="goTo(2)">Continue to Images →</button>
       </div>
-    </div>
-
-    <div class="card">
-      <div class="card-title">Content Preview <span class="badge" id="wordCount"></span></div>
-      <div class="md-preview" id="contentPreview"></div>
-    </div>
-
-    <div class="actions">
-      <button class="btn btn-ghost" onclick="goTo(1)">← Back</button>
-      <button class="btn btn-primary btn-lg" onclick="goTo(3)">Continue to Images →</button>
     </div>
   </div>
 
-  <!-- Panel 3: Images -->
-  <div class="panel" id="panel-3">
+  <!-- Panel 2: Images -->
+  <div class="panel" id="panel-2">
+
+    <!-- Image destination mode -->
+    <div class="mode-toggle">
+      <button class="mode-btn active" data-mode="strapi" onclick="setImageMode('strapi')">📤 Upload to Strapi</button>
+      <button class="mode-btn" data-mode="github" onclick="setImageMode('github')">📁 Commit to GitHub</button>
+    </div>
+    <div id="githubModeNote" class="github-mode-note" style="display:none;">
+      Images will be committed directly into the GitHub PR alongside the markdown file.
+      No Strapi upload needed — configure the image folder path in Step 3.
+    </div>
+
+    <!-- Cover image upload (always shown) -->
+    <div class="card" style="margin-bottom: 16px;">
+      <div class="card-title">Cover Image (Optional)</div>
+      <p class="section-subtitle">
+        If none of the content images suit the cover, upload a separate one here.
+        Its URL will be auto-filled in the <code>cover:</code> YAML field on Step 3.
+      </p>
+      <div id="coverDropZone" class="cover-drop-zone"
+           onclick="document.getElementById('coverFileInput').click()"
+           ondragover="event.preventDefault(); this.classList.add('drag-over')"
+           ondragleave="this.classList.remove('drag-over')"
+           ondrop="onCoverDrop(event)">
+        <input type="file" id="coverFileInput" accept="image/*" style="display:none"
+               onchange="onCoverFileSelected(event)">
+        <div id="coverDropHint">
+          <div style="font-size:28px; margin-bottom:8px;">🖼</div>
+          <div style="font-size:13px; color:var(--text3);">Click or drag a cover image here</div>
+        </div>
+        <img id="coverPreviewImg" style="display:none;">
+      </div>
+      <div id="coverUploadRow" style="display:none; margin-top:12px;">
+        <div style="display:flex; gap:12px; align-items:center; flex-wrap:wrap;">
+          <button class="btn btn-secondary" onclick="uploadCoverImage()" id="uploadCoverBtn">↑ Upload Cover to Strapi</button>
+          <span id="coverUploadStatus" style="font-size:12px; color:var(--text3);"></span>
+        </div>
+        <div id="coverSizeRow" style="display:none; margin-top:8px; align-items:center; gap:10px; flex-wrap:wrap;">
+          <span id="coverSizeInfo" style="font-size:11px; font-weight:600;"></span>
+          <button id="coverCompressBtn" class="compress-btn" style="width:auto; padding:4px 12px; display:none;" onclick="compressCoverImage()">⚡ Compress to ~500 KB</button>
+        </div>
+      </div>
+      <div id="coverUrlRow" style="display:none; margin-top:10px;">
+        <div style="font-size:11px; font-weight:600; color:var(--text3); margin-bottom:4px;">COVER URL (stored without https://)</div>
+        <div class="cover-url-chip" id="coverUrlChip"></div>
+      </div>
+    </div>
+
     <div class="card">
-      <div class="card-title">Step 3 — Upload Images to Strapi</div>
-      <p class="section-subtitle" id="imagesSubtitle">Found <strong id="imageCount">0</strong> images in your document. Click upload to push them all to Strapi and auto-replace links.</p>
+      <div class="card-title">Step 2 — Upload Images to Strapi</div>
+      <p class="section-subtitle">
+        Found <strong id="imageCount">0</strong> local images in your document.
+        <span id="imagesNote"></span>
+      </p>
+
+      <div id="bulkCompressBar" style="display:none;">
+        <div class="bulk-compress-bar">
+          <span style="font-size:15px;">⚠️</span>
+          <span class="warn-text"><span id="largeImgCount">0</span> image(s) over 1 MB — large files may slow uploads</span>
+          <button class="btn btn-secondary" style="font-size:12px; padding:5px 12px; white-space:nowrap;" onclick="compressAllLargeImages()" id="bulkCompressBtn">⚡ Compress All → ~500 KB</button>
+        </div>
+      </div>
 
       <div id="imagesGrid" class="images-grid" style="margin-bottom: 20px;"></div>
 
@@ -806,6 +1185,9 @@ More content...
         <button class="btn btn-primary btn-lg" onclick="uploadAllImages()" id="uploadImagesBtn">
           ↑ Upload All Images to Strapi
         </button>
+      </div>
+      <div id="githubImagesNote" style="display:none; font-size:13px; color:var(--text3);">
+        Images will be committed to GitHub in the PR. No Strapi upload needed.
       </div>
 
       <div id="uploadProgress" style="display:none; margin-top:16px;">
@@ -815,37 +1197,64 @@ More content...
     </div>
 
     <div class="actions">
-      <button class="btn btn-ghost" onclick="goTo(2)">← Back</button>
-      <button class="btn btn-primary btn-lg" id="toPublishBtn" onclick="goTo(4)" disabled>Continue to Publish →</button>
+      <button class="btn btn-ghost" onclick="goTo(1)">← Back</button>
+      <button class="btn btn-primary btn-lg" id="toPublishBtn" onclick="goTo(3)" disabled>Continue to Publish →</button>
     </div>
   </div>
 
-  <!-- Panel 4: Publish -->
-  <div class="panel" id="panel-4">
+  <!-- Panel 3: Publish -->
+  <div class="panel" id="panel-3">
     <div id="publishArea">
       <div class="card">
-        <div class="card-title">Step 4 — Create GitHub PR</div>
-        <p class="section-subtitle">Review the generated Markdown, then submit a PR to the milvus.io repository.</p>
+        <div class="card-title">Step 3 — Create GitHub PR</div>
+        <p class="section-subtitle">Choose the target repository and submit. The markdown file is created as-is.</p>
 
+        <div class="field-row">
+          <div class="field">
+            <label>TARGET REPO *</label>
+            <input type="text" id="f_prRepo" placeholder="milvus-io/community" />
+            <div class="field-hint">owner/repo format</div>
+          </div>
+          <div class="field">
+            <label>BASE BRANCH *</label>
+            <input type="text" id="f_prBranch" placeholder="master" />
+          </div>
+        </div>
+        <div class="field">
+          <label>BLOG FOLDER PATH</label>
+          <input type="text" id="f_prPath" placeholder="blog/en" />
+          <div class="field-hint">Folder in the repo where the file will be created</div>
+        </div>
         <div class="field">
           <label>PR TITLE</label>
-          <input type="text" id="f_prTitle" placeholder="Blog: Your Title Here" />
+          <input type="text" id="f_prTitle" placeholder="Blog: ..." />
+        </div>
+
+        <div class="field" id="imageFolderRow" style="display:none;">
+          <label>IMAGE FOLDER IN REPO</label>
+          <input type="text" id="f_imageFolder" placeholder="(leave empty — same folder as markdown)" />
+          <div class="field-hint">Relative to blog folder path, e.g. <code>assets</code> or <code>static/img</code></div>
         </div>
 
         <div class="field">
-          <label>GENERATED MARKDOWN PREVIEW</label>
-          <div class="md-preview" id="finalMarkdown" style="max-height: 240px;"></div>
+          <label>FINAL MARKDOWN PREVIEW</label>
+          <div class="preview-tabs">
+            <button class="preview-tab active" data-group="step3" data-tab="md" onclick="switchPreviewTab('step3','md')">Markdown</button>
+            <button class="preview-tab" data-group="step3" data-tab="preview" onclick="switchPreviewTab('step3','preview')">Preview</button>
+            <button class="preview-fullscreen-btn" onclick="openPreviewModal('step3')" title="Fullscreen">⛶</button>
+          </div>
+          <textarea id="step3-md" class="md-preview pane" spellcheck="false"></textarea>
+          <div id="step3-preview" class="rendered-preview" style="display:none;"></div>
         </div>
       </div>
 
       <div class="card">
-        <div class="card-title">Publish Options</div>
         <div style="display:flex; gap: 12px; flex-wrap: wrap;">
-          <button class="btn btn-secondary" onclick="downloadMarkdown()">⬇ Download .md file</button>
+          <button class="btn btn-secondary" onclick="downloadMarkdown()">⬇ Download .md</button>
           <button class="btn btn-primary btn-lg" onclick="createPR()" id="createPrBtn">🚀 Create GitHub PR</button>
         </div>
         <p style="font-size: 12px; color: var(--text3); margin-top: 12px;">
-          A new branch will be created automatically. You can still review the PR before merging.
+          A new branch is created automatically. You can review the PR before merging.
         </p>
       </div>
 
@@ -862,51 +1271,74 @@ More content...
         <div class="success-sub">Your blog post has been submitted for review.</div>
         <a id="prUrl" href="#" target="_blank" class="pr-link">🔗 View PR on GitHub</a>
         <br>
+        <div id="successCacheRow" style="display:none; margin: 16px auto 0; max-width: 400px; padding: 12px 16px; background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; text-align: left;">
+          <div style="font-size: 12px; color: var(--text2); margin-bottom: 8px;">
+            <span id="successCacheInfo"></span>
+          </div>
+          <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+            <button class="btn btn-ghost" style="font-size: 11px;" onclick="clearPostCache()">🗑 Clear this post's cache</button>
+            <button class="btn btn-ghost" style="font-size: 11px;" onclick="clearImageCache(); document.getElementById('successCacheRow').style.display='none'">🗑 Clear all cache</button>
+          </div>
+        </div>
+        <br>
         <button class="btn btn-secondary" onclick="resetAll()">Publish another post</button>
       </div>
     </div>
 
     <div class="actions">
-      <button class="btn btn-ghost" onclick="goTo(3)">← Back</button>
+      <button class="btn btn-ghost" onclick="goTo(2)">← Back</button>
     </div>
   </div>
 
 </main>
 
 <script>
-// ─── State ───────────────────────────────────────────────────────────────────
+// ─── State ────────────────────────────────────────────────────────────────────
 let state = {
-  zip: null,
-  htmlContent: '',
-  images: {}, // filename -> {blob, url(local preview), strapiUrl}
-  contentHtml: '',
-  contentMarkdown: '',
-  meta: {}
+  // The final markdown content that will be committed to GitHub.
+  // For .md uploads: the file content (with image URLs replaced after upload).
+  // For .zip uploads: converted markdown.
+  finalMarkdown: '',
+
+  // Parsed metadata (read-only, for display and PR title)
+  filename: '',   // derived from id: field or original filename
+  title: '',
+  author: '',
+
+  // Images from the zip (Google Docs or Feishu zip)
+  // key: filename, value: { blob, localUrl, strapiUrl, markdownRef }
+  images: {},
+
+  // Filename of the image designated as blog cover (from document images)
+  coverImage: null,
+  // URL (without https://) of a separately uploaded cover image
+  externalCoverUrl: null,
+  // 'strapi' | 'github'
+  imageMode: 'strapi',
 };
 
 // ─── Settings ─────────────────────────────────────────────────────────────────
 function loadSettings() {
   return {
     strapiToken: localStorage.getItem('strapiToken') || '',
-    strapiUrl: localStorage.getItem('strapiUrl') || 'https://cms.zilliz.cc',
-    ghToken: localStorage.getItem('ghToken') || '',
-    ghOwner: localStorage.getItem('ghOwner') || 'milvus-io',
-    ghRepo: localStorage.getItem('ghRepo') || 'milvus-io.github.io',
-    ghBranch: localStorage.getItem('ghBranch') || 'master',
-    ghPath: localStorage.getItem('ghPath') || 'blog',
+    strapiUrl:   localStorage.getItem('strapiUrl')   || 'https://cms.zilliz.cc',
+    ghToken:     localStorage.getItem('ghToken')     || '',
+    ghRepo:      localStorage.getItem('ghRepo')      || 'milvus-io/community',
+    ghBranch:    localStorage.getItem('ghBranch')    || 'master',
+    ghPath:      localStorage.getItem('ghPath')      || 'blog/en',
   };
 }
 
 function openSettings() {
   const s = loadSettings();
   document.getElementById('s_strapiToken').value = s.strapiToken;
-  document.getElementById('s_strapiUrl').value = s.strapiUrl;
-  document.getElementById('s_ghToken').value = s.ghToken;
-  document.getElementById('s_ghOwner').value = s.ghOwner;
-  document.getElementById('s_ghRepo').value = s.ghRepo;
-  document.getElementById('s_ghBranch').value = s.ghBranch;
-  document.getElementById('s_ghPath').value = s.ghPath;
+  document.getElementById('s_strapiUrl').value   = s.strapiUrl;
+  document.getElementById('s_ghToken').value     = s.ghToken;
+  document.getElementById('s_ghRepo').value      = s.ghRepo;
+  document.getElementById('s_ghBranch').value    = s.ghBranch;
+  document.getElementById('s_ghPath').value      = s.ghPath;
   document.getElementById('settingsModal').classList.add('open');
+  updateCacheStats();
 }
 
 function closeSettings() {
@@ -914,7 +1346,7 @@ function closeSettings() {
 }
 
 function saveSettings() {
-  ['strapiToken','strapiUrl','ghToken','ghOwner','ghRepo','ghBranch','ghPath'].forEach(k => {
+  ['strapiToken','strapiUrl','ghToken','ghRepo','ghBranch','ghPath'].forEach(k => {
     const el = document.getElementById('s_' + k);
     if (el) localStorage.setItem(k, el.value.trim());
   });
@@ -927,335 +1359,901 @@ function goTo(step) {
   document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
   document.getElementById('panel-' + step).classList.add('active');
 
-  for (let i = 1; i <= 4; i++) {
+  for (let i = 1; i <= 3; i++) {
     const el = document.getElementById('step-' + i);
     el.classList.remove('active', 'done');
     if (i < step) el.classList.add('done');
     if (i === step) el.classList.add('active');
   }
 
-  if (step === 4) prepareFinalMarkdown();
+  if (step === 3) preparePublishStep();
 }
 
-// ─── File handling ─────────────────────────────────────────────────────────────
+// ─── File dispatch ─────────────────────────────────────────────────────────────
 function handleDrop(e) {
   e.preventDefault();
   document.getElementById('uploadZone').classList.remove('drag-over');
   const file = e.dataTransfer.files[0];
-  if (file) processZip(file);
+  if (file) dispatchFile(file);
 }
 
 function handleFileSelect(e) {
   const file = e.target.files[0];
-  if (file) processZip(file);
+  if (file) dispatchFile(file);
 }
 
-async function processZip(file) {
-  if (!file.name.endsWith('.zip')) {
-    showAlert('Please upload a .zip file exported from Google Docs', 'error');
-    return;
+function dispatchFile(file) {
+  const name = file.name.toLowerCase();
+  if (name.endsWith('.md') || name.endsWith('.markdown')) {
+    processMarkdownFile(file);
+  } else if (name.endsWith('.zip')) {
+    processZip(file);
+  } else if (name.endsWith('.docx')) {
+    processDocx(file);
+  } else {
+    showAlert('Please upload a .md, .zip, or .docx file', 'error');
   }
+}
 
+// ─── .md file ─────────────────────────────────────────────────────────────────
+// Reads the .md file, extracts the [CONTENT] block if present (ignoring source
+// material / references outside it), and preserves YAML frontmatter as-is.
+async function processMarkdownFile(file) {
   try {
-    state.zip = await JSZip.loadAsync(file);
+    const text = await file.text();
     state.images = {};
 
-    // Find HTML file
-    let htmlFile = null;
-    state.zip.forEach((path, zipEntry) => {
-      if (path.endsWith('.html') && !zipEntry.dir) htmlFile = zipEntry;
-    });
+    // Split YAML frontmatter from body
+    const { frontmatter, body } = splitFrontmatter(text);
 
-    if (!htmlFile) {
-      showAlert('No HTML file found in zip. Make sure to export as "Web Page (.html, zipped)"', 'error');
-      return;
+    // Extract publishable content (between [CONTENT]/[/CONTENT] if present)
+    const rawContent = extractContentSection(body);
+    const content = cleanMarkdownEscapes(rawContent);
+
+    // Reassemble: frontmatter + content
+    state.finalMarkdown = frontmatter ? (frontmatter + '\n' + content) : content;
+
+    const info = parseDocInfo(frontmatter || text);
+    state.filename = info.id || stripExtension(file.name) + '.md';
+    state.title    = info.title || file.name;
+    state.author   = info.author || '';
+
+    // Warn if local image refs exist (can't upload without a zip)
+    const localRefs = findLocalImageRefs(content);
+    if (localRefs.length > 0) {
+      showAlert(
+        `Found ${localRefs.length} local image reference(s). To upload them, provide a .zip containing your .md + images folder.`,
+        'warn'
+      );
     }
 
-    state.htmlContent = await htmlFile.async('string');
+    showParsedSummary(state.finalMarkdown);
+  } catch (err) {
+    showAlert('Failed to read file: ' + err.message, 'error');
+    console.error(err);
+  }
+}
 
-    // Extract images
+// ─── .zip file ────────────────────────────────────────────────────────────────
+// Handles two cases:
+//   A) Contains a .md file + images folder (Feishu zip export)
+//   B) Contains an .html file + images folder (Google Docs "Web Page" export)
+async function processZip(file) {
+  try {
+    const zip = await JSZip.loadAsync(file);
+    state.images = {};
+
+    let mdEntry   = null;
+    let htmlEntry = null;
+
+    zip.forEach((path, entry) => {
+      if (entry.dir) return;
+      const lp = path.toLowerCase();
+      if ((lp.endsWith('.md') || lp.endsWith('.markdown')) && !mdEntry) mdEntry = { path, entry };
+      if (lp.endsWith('.html') && !htmlEntry) htmlEntry = { path, entry };
+    });
+
+    // Extract all images first (needed for both cases)
+    // Always create blobs with the correct MIME type — JSZip returns
+    // application/octet-stream by default which breaks Strapi's image recognition.
+    const mimeMap = {
+      png: 'image/png', jpg: 'image/jpeg', jpeg: 'image/jpeg',
+      gif: 'image/gif', webp: 'image/webp', svg: 'image/svg+xml',
+    };
     const imagePromises = [];
-    state.zip.forEach((path, zipEntry) => {
-      if (!zipEntry.dir && /\.(png|jpg|jpeg|gif|webp|svg)$/i.test(path)) {
+    zip.forEach((path, entry) => {
+      if (!entry.dir && /\.(png|jpg|jpeg|gif|webp|svg)$/i.test(path)) {
         imagePromises.push(
-          zipEntry.async('blob').then(blob => {
+          entry.async('blob').then(rawBlob => {
             const filename = path.split('/').pop();
+            const ext = filename.split('.').pop().toLowerCase();
+            const mime = mimeMap[ext] || 'image/png';
+            const blob = new Blob([rawBlob], { type: mime });
             const localUrl = URL.createObjectURL(blob);
-            state.images[filename] = { blob, localUrl, strapiUrl: null };
+            state.images[filename] = { blob, localUrl, strapiUrl: null, originalSize: blob.size };
           })
         );
       }
     });
-
     await Promise.all(imagePromises);
 
-    // Parse document
-    parseDocument();
-    goTo(2);
+    if (mdEntry) {
+      // Case A: Feishu / markdown zip — .md is the source of truth
+      const text = await mdEntry.entry.async('string');
 
+      const { frontmatter, body } = splitFrontmatter(text);
+      const rawContent = extractContentSection(body);
+      const content = cleanMarkdownEscapes(rawContent);
+      // Rewrite local image paths to blob: URLs so previews work
+      const contentWithBlobs = rewriteLocalImagesToBlobUrls(content);
+      state.finalMarkdown = frontmatter ? (frontmatter + '\n' + contentWithBlobs) : contentWithBlobs;
+
+      const info = parseDocInfo(frontmatter || text);
+      state.filename = info.id || stripExtension(mdEntry.path.split('/').pop()) + '.md';
+      state.title    = info.title || mdEntry.path;
+      state.author   = info.author || '';
+
+    } else if (htmlEntry) {
+      // Case B: Google Docs zip — convert HTML → markdown, then extract content
+      const html = await htmlEntry.entry.async('string');
+      const md = convertGoogleDocToMarkdown(html);
+
+      // The converted md may also have [CONTENT] markers
+      const { frontmatter, body } = splitFrontmatter(md);
+      const content = extractContentSection(body);
+      state.finalMarkdown = frontmatter ? (frontmatter + '\n' + content) : content;
+
+      const info = parseDocInfo(state.finalMarkdown);
+      state.filename = info.id || (htmlEntry.path.split('/').pop().replace('.html', '') + '.md');
+      state.title    = info.title || htmlEntry.path;
+      state.author   = info.author || '';
+    } else {
+      showAlert('No .md or .html file found in zip.', 'error');
+      return;
+    }
+
+    showParsedSummary(state.finalMarkdown);
   } catch (err) {
     showAlert('Failed to read zip: ' + err.message, 'error');
     console.error(err);
   }
 }
 
-// ─── Document parsing ─────────────────────────────────────────────────────────
-
-// Google Docs exports HTML with text inside nested <span> elements inside <p>.
-// We extract the full plain text of the document first, then use marker positions.
-
-function normalizeText(text) {
-  // Normalize fullwidth brackets and punctuation (common when typing with CJK input methods)
-  return text
-    .replace(/\uff3b/g, '[')   // ［ → [
-    .replace(/\uff3d/g, ']')   // ］ → ]
-    .replace(/\u3010/g, '[')   // 【 → [
-    .replace(/\u3011/g, ']')   // 】 → ]
-    .replace(/\uff1a/g, ':')   // ： → :
-    .replace(/\u00a0/g, ' ')   // non-breaking space → space
-    .replace(/\u200b/g, '')    // zero-width space → remove
-    .replace(/\u200c/g, '')    // zero-width non-joiner → remove
-    .replace(/\u200d/g, '')    // zero-width joiner → remove
-    .replace(/\ufeff/g, '');   // BOM → remove
-}
-
-function getFullText(htmlStr) {
-  const parser = new DOMParser();
-  const doc = parser.parseFromString(htmlStr, 'text/html');
-  // Replace <br> with newline before extracting text
-  doc.querySelectorAll('br').forEach(br => br.replaceWith('\n'));
-  // Add newlines after block elements
-  doc.querySelectorAll('p, h1, h2, h3, h4, h5, h6, li, tr, pre').forEach(el => {
-    el.insertAdjacentText('afterend', '\n');
-  });
-  return normalizeText(doc.body.textContent || '');
-}
-
-function extractTextBetween(fullText, startMarker, endMarker) {
-  // Try exact match first
-  let startIdx = fullText.indexOf(startMarker);
-  let endIdx = startIdx !== -1 ? fullText.indexOf(endMarker, startIdx + startMarker.length) : -1;
-  if (startIdx !== -1 && endIdx !== -1) {
-    return fullText.slice(startIdx + startMarker.length, endIdx).trim();
+// ─── .docx file (Feishu / Word) ───────────────────────────────────────────────
+// Uses mammoth.js to convert .docx → HTML, extracts embedded images,
+// then reuses the Google Docs HTML → Markdown pipeline.
+async function processDocx(file) {
+  if (typeof mammoth === 'undefined') {
+    showAlert('mammoth.js failed to load. Check your internet connection and refresh.', 'error');
+    return;
   }
+  try {
+    const arrayBuffer = await file.arrayBuffer();
+    state.images = {};
+    let imgIndex = 0;
 
-  // Fallback: case-insensitive regex match, tolerant of whitespace around brackets
-  // Converts "[PUBLISH]" → /\[\s*PUBLISH\s*\]/i
-  // Converts "[/PUBLISH]" → /\[\s*\/\s*PUBLISH\s*\]/i
-  function markerToPattern(marker) {
-    return marker
-      .replace('[', '\\[\\s*')
-      .replace('/', '\\/\\s*')
-      .replace(']', '\\s*\\]');
-  }
-  const regex = new RegExp(markerToPattern(startMarker) + '([\\s\\S]*?)' + markerToPattern(endMarker), 'i');
-  const match = fullText.match(regex);
-  if (match) return match[1].trim();
+    // Convert .docx → HTML, extracting images as blobs
+    const result = await mammoth.convertToHtml(
+      { arrayBuffer },
+      {
+        convertImage: mammoth.images.imgElement(function(image) {
+          return image.read('base64').then(function(base64) {
+            const ext = (image.contentType || 'image/png').split('/')[1] || 'png';
+            const filename = `image${++imgIndex}.${ext}`;
+            const binary = atob(base64);
+            const bytes = new Uint8Array(binary.length);
+            for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+            const blob = new Blob([bytes], { type: image.contentType || 'image/png' });
+            const localUrl = URL.createObjectURL(blob);
+            state.images[filename] = { blob, localUrl, strapiUrl: null, originalSize: blob.size };
+            return { src: localUrl };
+          });
+        }),
+      }
+    );
 
-  return null;
-}
+    // Convert mammoth HTML → Markdown using existing pipeline
+    const md = convertGoogleDocToMarkdown(result.value);
+    const { frontmatter, body } = splitFrontmatter(md);
+    const content = extractContentSection(body);
+    state.finalMarkdown = frontmatter ? (frontmatter + '\n' + content) : content;
 
-function parseMetaFields(text) {
-  const meta = {};
-  // Normalize the text first (handles fullwidth colons, etc.)
-  const normalized = normalizeText(text);
-  const lines = normalized.split('\n');
-  for (const line of lines) {
-    const colonIdx = line.indexOf(':');
-    if (colonIdx === -1) continue;
-    let key = line.slice(0, colonIdx).trim().toLowerCase();
-    const value = line.slice(colonIdx + 1).trim();
-    if (!key || !value) continue;
-    // Normalize key names
-    key = key
-      .replace(/\s+/g, '_')
-      .replace(/[^a-z0-9_]/g, '');
-    // Map common aliases to canonical names
-    const keyMap = {
-      'meta_title': 'title',
-      'meta_description': 'desc',
-      'description': 'desc',
-      'meta_desc': 'desc',
-      'slug': 'url',
-      'tag': 'tags',
-      'keyword': 'keywords',
-    };
-    if (keyMap[key]) key = keyMap[key];
-    meta[key] = value;
-  }
-  return meta;
-}
+    const info = parseDocInfo(state.finalMarkdown);
+    state.filename = info.id || stripExtension(file.name) + '.md';
+    state.title    = info.title || file.name;
+    state.author   = info.author || '';
 
-function textContainsMarker(text, marker) {
-  // Check exact match first
-  if (text.includes(marker)) return true;
-  // Check after normalizing text (handles CJK brackets, non-breaking spaces, etc.)
-  const normalized = normalizeText(text);
-  if (normalized.includes(marker)) return true;
-  // Check case-insensitive with optional whitespace inside brackets
-  // e.g. "[ PUBLISH ]" or "[publish]"
-  const keyword = marker.replace(/[\[\]\/]/g, '').trim();
-  const hasSlash = marker.includes('/');
-  const pattern = new RegExp('\\[\\s*' + (hasSlash ? '\\/\\s*' : '') + keyword + '\\s*\\]', 'i');
-  return pattern.test(normalized);
-}
-
-function extractHtmlBetween(htmlStr, startMarker, endMarker) {
-  const parser = new DOMParser();
-  const doc = parser.parseFromString(htmlStr, 'text/html');
-  const allElems = Array.from(doc.body.querySelectorAll('p, h1, h2, h3, h4, h5, h6, ul, ol, pre, table, blockquote, div'));
-
-  let started = false;
-  const selected = [];
-
-  for (const el of allElems) {
-    const text = el.textContent || '';
-    if (!started) {
-      if (textContainsMarker(text, startMarker)) { started = true; }
-      continue;
+    if (result.messages && result.messages.length > 0) {
+      console.warn('[processDocx] mammoth warnings:', result.messages);
     }
-    if (textContainsMarker(text, endMarker)) { break; }
-    selected.push(el.outerHTML);
-  }
 
-  return started ? selected.join('\n') : null;
+    showParsedSummary(state.finalMarkdown);
+  } catch (err) {
+    showAlert('Failed to process .docx: ' + err.message, 'error');
+    console.error(err);
+  }
 }
 
-function parseDocument() {
-  const html = state.htmlContent;
-  const fullText = getFullText(html);
-
-  console.log('=== FULL TEXT SAMPLE ===');
-  console.log(fullText.slice(0, 800));
-
-  // Parse PUBLISH block
-  const publishText = extractTextBetween(fullText, '[PUBLISH]', '[/PUBLISH]');
-  console.log('PUBLISH block:', publishText);
-  if (publishText) {
-    state.meta = parseMetaFields(publishText);
-    console.log('Parsed meta:', state.meta);
-  } else {
-    console.warn('Could not find [PUBLISH] block in document!');
-    console.log('Looking for markers in text... indexOf [PUBLISH]:', fullText.indexOf('[PUBLISH]'));
-    console.log('Character codes around potential markers:');
-    // Log character codes to help debug encoding issues
-    const idx = fullText.search(/publish/i);
-    if (idx !== -1) {
-      const surrounding = fullText.slice(Math.max(0, idx - 5), idx + 15);
-      console.log('Found "publish" at index', idx, '- surrounding chars:', Array.from(surrounding).map(c => c + '(U+' + c.charCodeAt(0).toString(16).padStart(4, '0') + ')').join(' '));
-    }
-    showAlert('Could not find [PUBLISH] block. Make sure your doc contains [PUBLISH] and [/PUBLISH] markers.', 'warn');
-  }
-
-  // Parse CONTENT block as HTML
-  let contentHtml = extractHtmlBetween(html, '[CONTENT]', '[/CONTENT]');
-  if (!contentHtml) {
-    // Fallback: get plain text
-    const contentText = extractTextBetween(fullText, '[CONTENT]', '[/CONTENT]');
-    if (contentText) {
-      contentHtml = contentText.split('\n\n').map(p => `<p>${p.replace(/\n/g, '<br>')}</p>`).join('\n');
-      console.warn('Used plain text fallback for content');
-    } else {
-      console.warn('Could not find [CONTENT] block!');
-      showAlert('⚠️ Could not find [CONTENT] block. Make sure your doc contains [CONTENT] and [/CONTENT] markers.', 'warn');
-    }
-  }
-  state.contentHtml = contentHtml || '';
-
-  // Fix image src to use local blob URLs
-  const parser = new DOMParser();
-  const doc = parser.parseFromString(`<div>${state.contentHtml}</div>`, 'text/html');
-  doc.querySelectorAll('img').forEach(img => {
-    const src = img.getAttribute('src') || '';
-    // Google Docs uses paths like "images/imageN.png" in the zip
-    const filename = src.split('/').pop().split('?')[0];
-    if (state.images[filename]) {
-      img.setAttribute('src', state.images[filename].localUrl);
-      img.setAttribute('data-original-name', filename);
-    }
-  });
-  state.contentHtml = doc.body.firstChild ? doc.body.firstChild.innerHTML : '';
-
-  // Convert to Markdown
-  state.contentMarkdown = htmlToMarkdown(state.contentHtml);
-
-  // Populate UI
-  populateMetaFields();
-  populateContentPreview();
-  populateImagesGrid();
-}
-
-function htmlToMarkdown(html) {
+// ─── Google Docs HTML → Markdown ──────────────────────────────────────────────
+function convertGoogleDocToMarkdown(html) {
   const td = new TurndownService({
     headingStyle: 'atx',
     codeBlockStyle: 'fenced',
     bulletListMarker: '-',
   });
 
-  // Preserve code blocks
-  td.addRule('codeBlocks', {
+  // Google Docs tables: no <thead>/<th>, all <td> — custom rule needed
+  td.addRule('gdocTable', {
+    filter: 'table',
+    replacement: (_content, node) => {
+      const rows = Array.from(node.querySelectorAll('tr'));
+      if (!rows.length) return '';
+      const matrix = rows.map(tr =>
+        Array.from(tr.querySelectorAll('td, th')).map(cell => {
+          // Convert cell content through Turndown for inline formatting
+          const inner = td.turndown(cell.innerHTML).replace(/\n/g, ' ').replace(/\|/g, '\\|').trim();
+          return inner || ' ';
+        })
+      );
+      // Normalize column count to the max across all rows
+      const cols = Math.max(...matrix.map(r => r.length));
+      matrix.forEach(r => { while (r.length < cols) r.push(' '); });
+      const header = '| ' + matrix[0].join(' | ') + ' |';
+      const sep    = '| ' + matrix[0].map(() => '---').join(' | ') + ' |';
+      const body   = matrix.slice(1).map(r => '| ' + r.join(' | ') + ' |').join('\n');
+      return '\n\n' + header + '\n' + sep + (body ? '\n' + body : '') + '\n\n';
+    },
+  });
+
+  // Google Docs bold: font-weight:700+
+  td.addRule('gdocBold', {
+    filter: node => node.nodeName === 'SPAN' && /font-weight\s*:\s*([7-9]00|bold)/i.test(node.getAttribute('style') || ''),
+    replacement: content => content.trim() ? `**${content.trim()}**` : '',
+  });
+
+  // Google Docs italic: font-style:italic
+  td.addRule('gdocItalic', {
+    filter: node => node.nodeName === 'SPAN' && /font-style\s*:\s*italic/i.test(node.getAttribute('style') || ''),
+    replacement: content => content.trim() ? `*${content.trim()}*` : '',
+  });
+
+  // Google Docs inline code: monospace font
+  td.addRule('gdocCode', {
+    filter: node => node.nodeName === 'SPAN' && /font-family\s*:[^;]*(?:Courier|monospace|Consolas|Monaco)/i.test(node.getAttribute('style') || ''),
+    replacement: content => content.trim() ? `\`${content.trim()}\`` : '',
+  });
+
+  // Fenced code blocks
+  td.addRule('fencedCode', {
     filter: ['pre'],
-    replacement: (content, node) => {
-      const code = node.querySelector('code');
-      const lang = code ? (code.className.match(/language-(\w+)/)?.[1] || '') : '';
-      const text = node.textContent || '';
-      return `\n\`\`\`${lang}\n${text.trim()}\n\`\`\`\n`;
+    replacement: (_c, node) => {
+      const lang = (node.querySelector('code')?.className.match(/language-(\w+)/)?.[1]) || '';
+      return `\n\`\`\`${lang}\n${node.textContent.trim()}\n\`\`\`\n`;
+    },
+  });
+
+  const parser = new DOMParser();
+  const doc = parser.parseFromString(html, 'text/html');
+
+  // Fix Google redirect URLs (https://www.google.com/url?q=REAL_URL&...)
+  doc.querySelectorAll('a[href]').forEach(a => {
+    const href = a.getAttribute('href') || '';
+    if (href.includes('google.com/url')) {
+      try {
+        const q = new URL(href).searchParams.get('q');
+        if (q) a.setAttribute('href', decodeURIComponent(q));
+      } catch (_) {}
     }
   });
 
-  return td.turndown(html);
+  // Rewrite img src to blob URLs before converting
+  doc.querySelectorAll('img').forEach(img => {
+    const src = img.getAttribute('src') || '';
+    const filename = src.split('/').pop().split('?')[0];
+    if (state.images[filename]) {
+      img.setAttribute('src', state.images[filename].localUrl);
+    }
+  });
+
+  // Walk direct children of top wrapper to avoid double-counting nested elements
+  let container = doc.body;
+  if (doc.body.children.length === 1 && doc.body.children[0].tagName === 'DIV') {
+    container = doc.body.children[0];
+  }
+
+  // Walk children, detecting manual ``` code fences written in plain text.
+  // When a ``` fence is detected, collect subsequent lines as raw textContent
+  // (bypassing Turndown entirely) so no markdown escaping happens inside code.
+  const children = Array.from(container.children);
+  const parts = [];
+  let i = 0;
+  while (i < children.length) {
+    const el = children[i];
+    const trimmed = (el.textContent || '').trim();
+
+    // Opening fence: a paragraph whose only content is ```[lang]
+    const fenceMatch = trimmed.match(/^```(\w*)\s*$/);
+    if (fenceMatch) {
+      const lang = fenceMatch[1];
+      const codeLines = [];
+      i++;
+      while (i < children.length) {
+        const lineEl = children[i];
+        const lineText = (lineEl.textContent || '').replace(/\n$/, '');
+        if (lineText.trim() === '```') { i++; break; }
+        codeLines.push(lineText);
+        i++;
+      }
+      // Join lines with \n — content is untouched (no Turndown, no escaping)
+      parts.push('```' + lang + '\n' + codeLines.join('\n') + '\n```');
+      continue;
+    }
+
+    parts.push(td.turndown(el.outerHTML));
+    i++;
+  }
+
+  const raw = parts.join('\n\n').replace(/\n{3,}/g, '\n\n').trim();
+  return cleanMarkdownEscapes(raw);
 }
 
-// ─── UI population ─────────────────────────────────────────────────────────────
-function populateMetaFields() {
-  const m = state.meta;
-  if (m.title) document.getElementById('f_title').value = m.title;
-  if (m.author) document.getElementById('f_author').value = m.author;
-  if (m.desc) document.getElementById('f_desc').value = m.desc;
-  if (m.url) document.getElementById('f_url').value = m.url;
-  if (m.tags) document.getElementById('f_tags').value = m.tags;
-  if (m.keywords) document.getElementById('f_keywords').value = m.keywords;
+// ─── Rewrite local image references to blob URLs ───────────────────────────────
+// Used when a zip contains both .md and images, so we can show previews
+// and then replace with Strapi URLs after upload.
+function rewriteLocalImagesToBlobUrls(markdown) {
+  let md = markdown;
+  for (const [filename, imgData] of Object.entries(state.images)) {
+    const escaped = filename.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    // Replace ![alt](images/filename) or ![alt](filename)
+    md = md.replace(
+      new RegExp(`(!\\[[^\\]]*\\]\\()(?:[^)]*\\/)?${escaped}(\\))`, 'g'),
+      `$1${imgData.localUrl}$2`
+    );
+  }
+  return md;
 }
 
-function populateContentPreview() {
-  const preview = document.getElementById('contentPreview');
-  preview.textContent = state.contentMarkdown;
-  const words = state.contentMarkdown.split(/\s+/).filter(Boolean).length;
-  document.getElementById('wordCount').textContent = `~${words} words`;
+// ─── Find local image references ───────────────────────────────────────────────
+function findLocalImageRefs(markdown) {
+  const matches = [...markdown.matchAll(/!\[[^\]]*\]\(([^)]+)\)/g)];
+  return matches
+    .map(m => m[1].trim())
+    .filter(url => !url.startsWith('http') && !url.startsWith('blob:'));
+}
+
+// ─── YAML frontmatter parser ──────────────────────────────────────────────────
+// Extracts id, title, author from YAML frontmatter (between --- markers).
+// Handles plain "key: value" and block scalars (key: >\n  value).
+function parseDocInfo(markdown) {
+  const m = markdown.match(/^---[\r\n]([\s\S]*?)[\r\n]---/);
+  if (!m) return {};
+  const fm = m[1];
+
+  function extractField(key) {
+    // Plain: key: value  (but not if value is just a YAML block scalar indicator)
+    const plain = fm.match(new RegExp(`^${key}:\\s*(.+)$`, 'm'));
+    if (plain) {
+      const val = plain[1].trim().replace(/^['"]|['"]$/g, '');
+      if (val !== '>' && val !== '|') return val;
+      // value is > or | — fall through to block scalar
+    }
+    // Block scalar: key: >\n  indented value
+    const block = fm.match(new RegExp(`^${key}:\\s*[>|]\\s*[\\r\\n](([ \\t]+.+[\\r\\n]?)+)`, 'm'));
+    if (block) return block[1].replace(/^[ \t]+/gm, '').replace(/\n/g, ' ').trim();
+    return null;
+  }
+
+  return {
+    id:              extractField('id'),
+    title:           extractField('title') || extractField('meta_title'),
+    author:          extractField('author'),
+    date:            extractField('date'),
+    tag:             extractField('tag'),
+    tags:            extractField('tags'),
+    meta_title:      extractField('meta_title'),
+    meta_keywords:   extractField('meta_keywords'),
+    desc:            extractField('desc'),
+    recommend:       extractField('recommend'),
+    publishToMedium: extractField('publishToMedium'),
+  };
+}
+
+function stripExtension(filename) {
+  return filename.replace(/\.[^/.]+$/, '');
+}
+
+// Extract title from first # H1 heading and author from "by xxx" line in body
+function extractBodyMeta(body) {
+  const result = {};
+  const h1 = body.match(/^#\s+(.+)$/m);
+  if (h1) result.title = h1[1].trim();
+  // "by Author" — may be italic (*by ...*) or plain
+  const byLine = body.match(/^\*?[Bb]y\s+(.+?)\*?\s*$/m);
+  if (byLine) result.author = byLine[1].trim();
+  return result;
+}
+
+function titleToSlug(title) {
+  return title.toLowerCase()
+    .replace(/[^a-z0-9\s-]/g, '')   // remove non-alphanumeric
+    .replace(/\s+/g, '-')           // spaces → hyphens
+    .replace(/-+/g, '-')            // collapse hyphens
+    .replace(/^-|-$/g, '')          // trim hyphens
+    + '.md';
+}
+
+// ─── Split YAML frontmatter from body ─────────────────────────────────────────
+// Returns { frontmatter: "---\n...\n---\n", body: "rest of text" }
+function splitFrontmatter(text) {
+  const m = text.match(/^(---\r?\n[\s\S]*?\r?\n---)\r?\n?([\s\S]*)$/);
+  if (m) {
+    // Remove blank lines inside the YAML block (Feishu exports often add them)
+    const cleanedFm = m[1].replace(/\n\n+/g, '\n');
+    return { frontmatter: cleanedFm + '\n', body: m[2] };
+  }
+  return { frontmatter: '', body: text };
+}
+
+// ─── Extract [CONTENT]...[/CONTENT] section ───────────────────────────────────
+// If markers are present, returns only the content between them.
+// If not present, returns the full text (backward compatible).
+function extractContentSection(rawText) {
+  // Normalize the text so markers are found reliably regardless of:
+  //   - Case: [Content], [content], [CONTENT] all work
+  //   - Feishu/markdown escaping: \[Content\] → [Content]
+  //   - CJK bracket variants: 【Content】 → [Content]
+  //   - Non-breaking spaces
+  const text = rawText
+    .replace(/\\`/g, '`')          // unescape backticks
+    .replace(/\\\[/g, '[')         // \[ → [
+    .replace(/\\\]/g, ']')         // \] → ]
+    .replace(/[\uff3b\u3010]/g, '[')
+    .replace(/[\uff3d\u3011]/g, ']')
+    .replace(/\u00a0/g, ' ');
+
+  // Case-insensitive search
+  const lower = text.toLowerCase();
+  const si = lower.indexOf('[content]');
+  if (si === -1) return rawText.trim(); // no marker — return original unchanged
+
+  const ei = lower.indexOf('[/content]', si + '[content]'.length);
+  if (ei === -1) return text.slice(si + '[content]'.length).trim();
+  return text.slice(si + '[content]'.length, ei).trim();
+}
+
+// ─── Clean over-escaping from Turndown ────────────────────────────────────────
+// Turndown escapes characters like _ that don't need escaping in CommonMark.
+// We undo those outside code spans/blocks.
+function cleanMarkdownEscapes(md) {
+  // Phase 1: Unescape backticks globally so code fences are correctly detected.
+  // Feishu exports ``` as \`\`\` — we must restore them before splitting.
+  const processed = md.replace(/\\`/g, '`');
+
+  // Phase 2: Split on actual code spans/blocks to protect their content
+  const segments = [];
+  const codeRe = /(`{3}[\s\S]*?`{3}|`[^`\n]+`)/g;
+  let last = 0, m;
+  while ((m = codeRe.exec(processed)) !== null) {
+    if (m.index > last) segments.push({ code: false, t: processed.slice(last, m.index) });
+    segments.push({ code: true, t: m[0] });
+    last = codeRe.lastIndex;
+  }
+  if (last < processed.length) segments.push({ code: false, t: processed.slice(last) });
+
+  return segments.map(seg => {
+    if (seg.code) {
+      if (seg.t.startsWith('```')) {
+        // Fenced code block: only remove markdown-specific over-escapes
+        // that can't be valid in any programming language (\_  \[  \]  \#).
+        // Everything else (\\, \n, \t, etc.) is left completely untouched.
+        return seg.t
+          .replace(/\\_/g, '_')
+          .replace(/\\\[/g, '[')
+          .replace(/\\\]/g, ']')
+          .replace(/\\#/g, '#');
+      }
+      // Inline code: same treatment
+      return seg.t
+        .replace(/\\_/g, '_')
+        .replace(/\\\[/g, '[')
+        .replace(/\\\]/g, ']')
+        .replace(/\\#/g, '#');
+    }
+    // Non-code text: clean all common over-escapes from Feishu/Turndown
+    return seg.t
+      .replace(/\\_/g, '_')           // my\_var → my_var
+      .replace(/\\\[/g, '[')          // \[text\] → [text]
+      .replace(/\\\]/g, ']')
+      .replace(/(\d+)\\\./g, '$1.')   // 1\. → 1.
+      .replace(/^\\\-/gm, '-')        // \- → - at line start
+      .replace(/\\~/g, '~')           // \~ → ~
+      .replace(/^\\(#{1,6}\s)/gm, '$1');  // \# heading → # heading (Turndown over-escapes)
+  }).join('');
+}
+
+// ─── Strapi image URL cache ────────────────────────────────────────────────────
+// Keyed by SHA-256 hash of image bytes → survives page reloads and filename changes.
+// Value: { url, name } where url is the Strapi URL and name is the upload filename.
+const IMAGE_CACHE_KEY = 'strapiImageCache';
+function loadImageCache() {
+  try { return JSON.parse(localStorage.getItem(IMAGE_CACHE_KEY) || '{}'); }
+  catch { return {}; }
+}
+function saveImageCache(cache) {
+  try { localStorage.setItem(IMAGE_CACHE_KEY, JSON.stringify(cache)); } catch {}
+}
+function clearImageCache() {
+  localStorage.removeItem(IMAGE_CACHE_KEY);
+  showAlert('Image cache cleared.', 'info');
+  updateCacheStats();
+}
+
+function showSuccessCacheInfo() {
+  // Collect hashes for images uploaded in this session
+  const hashes = Object.values(state.images)
+    .map(d => d.hash)
+    .filter(Boolean);
+  if (state._coverHash) hashes.push(state._coverHash);
+  const unique = [...new Set(hashes)];
+
+  const row = document.getElementById('successCacheRow');
+  const info = document.getElementById('successCacheInfo');
+  if (unique.length === 0) { row.style.display = 'none'; return; }
+
+  const cache = loadImageCache();
+  const cached = unique.filter(h => cache[h]);
+  if (cached.length === 0) { row.style.display = 'none'; return; }
+
+  info.innerHTML = `<strong style="color:var(--text)">${cached.length}</strong> image${cached.length > 1 ? 's' : ''} from this post ${cached.length > 1 ? 'are' : 'is'} saved in cache. They won't be re-uploaded next time — clear only if you've deleted them from Strapi.`;
+  row.style.display = 'block';
+}
+
+function clearPostCache() {
+  const hashes = Object.values(state.images)
+    .map(d => d.hash)
+    .filter(Boolean);
+  if (state._coverHash) hashes.push(state._coverHash);
+  const unique = [...new Set(hashes)];
+
+  const cache = loadImageCache();
+  let removed = 0;
+  for (const h of unique) {
+    if (cache[h]) { delete cache[h]; removed++; }
+  }
+  saveImageCache(cache);
+
+  const row = document.getElementById('successCacheRow');
+  const info = document.getElementById('successCacheInfo');
+  info.textContent = `✓ Removed ${removed} entr${removed === 1 ? 'y' : 'ies'} from cache.`;
+  // hide buttons
+  row.querySelectorAll('button').forEach(b => b.style.display = 'none');
+  updateCacheStats();
+}
+
+function updateCacheStats() {
+  const cache = loadImageCache();
+  const count = Object.keys(cache).length;
+  const kb = (new Blob([localStorage.getItem(IMAGE_CACHE_KEY) || '']).size / 1024).toFixed(1);
+  const el = document.getElementById('cacheStats');
+  if (!el) return;
+  if (count === 0) {
+    el.textContent = 'Cache is empty';
+  } else {
+    el.textContent = `${count} entr${count === 1 ? 'y' : 'ies'} · ~${kb} KB`;
+  }
+}
+
+// ─── Content hash ──────────────────────────────────────────────────────────────
+async function hashBlob(blob) {
+  const buf = await blob.arrayBuffer();
+  const digest = await crypto.subtle.digest('SHA-256', buf);
+  return Array.from(new Uint8Array(digest)).map(b => b.toString(16).padStart(2, '0')).join('');
+}
+
+// ─── Fullscreen preview modal ──────────────────────────────────────────────────
+function openPreviewModal(group) {
+  const previewEl = document.getElementById(`${group}-preview`);
+  const mdEl      = document.getElementById(`${group}-md`);
+  // If rendered content is available use it; otherwise render the markdown now
+  let html = previewEl && previewEl.innerHTML.trim()
+    ? previewEl.innerHTML
+    : renderMarkdownHtml(mdEl ? (mdEl.value !== undefined ? mdEl.value : mdEl.textContent) : '');
+  document.getElementById('previewModalBody').innerHTML = html;
+  document.getElementById('previewModalTitle').textContent =
+    group === 'step3' ? 'Final Preview (with Strapi images)' : 'Content Preview';
+  const modal = document.getElementById('previewModal');
+  modal.style.display = 'block';
+  document.body.style.overflow = 'hidden';
+}
+function closePreviewModal() {
+  document.getElementById('previewModal').style.display = 'none';
+  document.body.style.overflow = '';
+}
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closePreviewModal(); });
+
+// ─── Preview helpers ───────────────────────────────────────────────────────────
+// Render markdown to HTML, stripping YAML frontmatter for display.
+// Image URLs (blob: or https:) are used as-is.
+function renderMarkdownHtml(md) {
+  // Strip YAML frontmatter (---...---) before rendering
+  const body = md.replace(/^---[\r\n][\s\S]*?[\r\n]---\r?\n?/, '');
+  if (typeof marked === 'undefined') return `<pre>${escapeHtml(body)}</pre>`;
+  return marked.parse(body);
+}
+
+function escapeHtml(str) {
+  return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+// Switch between Markdown / Preview tabs for a given group (step1 or step3)
+function switchPreviewTab(group, tab) {
+  document.querySelectorAll(`[data-group="${group}"]`).forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.tab === tab);
+  });
+  document.getElementById(`${group}-md`).style.display      = tab === 'md'      ? '' : 'none';
+  document.getElementById(`${group}-preview`).style.display = tab === 'preview' ? '' : 'none';
+}
+
+// ─── Show parsed summary on step 1 ────────────────────────────────────────────
+function setupSeoCounter(inputId, maxChars) {
+  const input = document.getElementById(inputId);
+  const field = input.closest('.field');
+  // Create counter element
+  let counter = field.querySelector('.seo-counter');
+  if (!counter) {
+    counter = document.createElement('div');
+    counter.className = 'seo-counter';
+    field.appendChild(counter);
+  }
+  const update = () => {
+    const len = input.value.length;
+    const over = len > maxChars;
+    counter.textContent = `${len} / ${maxChars}` + (over ? ' — too long, Google will truncate' : '');
+    counter.classList.toggle('over', over);
+    field.classList.toggle('seo-over', over);
+  };
+  input.addEventListener('input', update);
+  update();
+}
+
+function showParsedSummary(markdown) {
+  const localImgCount = Object.keys(state.images).length;
+  const words = markdown.split(/\s+/).filter(Boolean).length;
+
+  document.getElementById('sum_filename').textContent = state.filename || '(unknown)';
+  document.getElementById('sum_images').textContent   = String(localImgCount);
+  document.getElementById('sum_words').textContent    = String(words);
+
+  // Show upload success state
+  const zone = document.getElementById('uploadZone');
+  zone.classList.add('uploaded');
+  document.getElementById('uploadZoneDefault').style.display = 'none';
+  document.getElementById('uploadZoneSuccess').style.display = 'block';
+  document.getElementById('uploadedFileName').textContent = state.filename || '(unknown)';
+
+  // Populate frontmatter form from parsed fields + body extraction
+  const info = parseDocInfo(markdown);
+  const { body: mdBody } = splitFrontmatter(markdown);
+  const bodyMeta = extractBodyMeta(mdBody);
+  const today = new Date();
+  const todayStr = `${today.getFullYear()}-${today.getMonth() + 1}-${today.getDate()}`;
+
+  const titleVal = info.title || bodyMeta.title || state.title || '';
+  document.getElementById('fm_title').value         = titleVal;
+  document.getElementById('fm_id').value            = info.id || titleToSlug(titleVal);
+  document.getElementById('fm_author').value        = info.author || bodyMeta.author || state.author || '';
+  document.getElementById('fm_date').value          = info.date || todayStr;
+  document.getElementById('fm_meta_title').value    = info.meta_title || '';
+  document.getElementById('fm_meta_keywords').value = info.meta_keywords || '';
+  document.getElementById('fm_desc').value          = info.desc || '';
+  document.getElementById('fm_recommend').checked   = info.recommend === 'true';
+  document.getElementById('fm_publishToMedium').checked = info.publishToMedium !== 'false';
+
+  // Auto-update slug when title changes (unless user has manually edited slug)
+  let slugManuallyEdited = !!info.id;
+  document.getElementById('fm_id').addEventListener('input', () => { slugManuallyEdited = true; });
+  document.getElementById('fm_title').addEventListener('input', () => {
+    if (!slugManuallyEdited) {
+      document.getElementById('fm_id').value = titleToSlug(document.getElementById('fm_title').value);
+    }
+  });
+
+  // SEO character counters
+  setupSeoCounter('fm_meta_title', 60);
+  setupSeoCounter('fm_desc', 155);
+
+  if (info.tag) {
+    const sel = document.getElementById('fm_tag');
+    // Add option if not in list
+    if (!Array.from(sel.options).some(o => o.value === info.tag)) {
+      sel.insertAdjacentHTML('beforeend', `<option value="${info.tag}">${info.tag}</option>`);
+    }
+    sel.value = info.tag;
+  }
+  if (info.tags) document.getElementById('fm_tags').value = info.tags;
+
+  document.getElementById('parsedSummary').style.display = 'block';
+
+  // Pre-populate images step
+  populateImagesGrid();
+
+  // If no local images to upload, auto-enable "Continue to Publish"
+  if (localImgCount === 0) {
+    document.getElementById('imageCount').textContent = '0';
+    document.getElementById('imagesNote').textContent = 'No local images — you can skip straight to Publish.';
+    document.getElementById('toPublishBtn').disabled = false;
+    document.getElementById('uploadImagesBtn').style.display = 'none';
+  } else {
+    document.getElementById('imageCount').textContent = String(localImgCount);
+    document.getElementById('imagesNote').textContent = 'Upload them to Strapi before publishing.';
+    document.getElementById('uploadImagesBtn').style.display = '';
+  }
+}
+
+// ─── Images grid ──────────────────────────────────────────────────────────────
+function formatBytes(bytes) {
+  if (bytes >= 1048576) return (bytes / 1048576).toFixed(1) + ' MB';
+  if (bytes >= 1024) return (bytes / 1024).toFixed(0) + ' KB';
+  return bytes + ' B';
 }
 
 function populateImagesGrid() {
   const grid = document.getElementById('imagesGrid');
-  const count = Object.keys(state.images).length;
-  document.getElementById('imageCount').textContent = count;
-
-  if (count === 0) {
-    grid.innerHTML = '<p style="color:var(--text3); font-size:13px;">No images found in document.</p>';
-    document.getElementById('toPublishBtn').disabled = false;
-    return;
-  }
-
   grid.innerHTML = '';
+
+  let largeCount = 0;
+
   for (const [filename, imgData] of Object.entries(state.images)) {
+    const isCover = state.coverImage === filename;
+    const size = imgData.blob ? imgData.blob.size : 0;
+    const isLarge = size > 1048576; // > 1 MB
+    if (isLarge) largeCount++;
+    const sizeLabel = size > 0 ? formatBytes(size) : '';
+    const sizeClass = isLarge ? 'large' : '';
+
     const card = document.createElement('div');
-    card.className = 'image-card';
-    card.id = 'imgcard-' + filename;
+    card.className = 'image-card' + (isCover ? ' is-cover' : '');
+    card.id = 'imgcard-' + CSS.escape(filename);
+    // Use &quot; to safely embed quoted strings in onclick HTML attributes
+    const fnAttr = JSON.stringify(filename).replace(/"/g, '&quot;');
+    const fnHtml = filename.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
     card.innerHTML = `
-      <img class="image-preview" src="${imgData.localUrl}" alt="${filename}">
+      <div class="cover-badge">COVER</div>
+      <img class="image-preview" src="${imgData.localUrl}" alt="${fnHtml}">
       <div class="image-info">
-        <div class="image-name">${filename}</div>
-        <div class="image-status">⏳ Pending upload</div>
+        <div class="image-name" title="${fnHtml}">${fnHtml}</div>
+        <div class="image-size ${sizeClass}" id="imgsize-${CSS.escape(filename)}">${sizeLabel}</div>
+        <div class="image-status">⏳ Pending</div>
+        ${isLarge ? `<button class="compress-btn" id="compbtn-${CSS.escape(filename)}" onclick="compressOneImage(${fnAttr})">⚡ Compress to ~500 KB</button>` : ''}
+        <button class="set-cover-btn" onclick="setCoverImage(${fnAttr})">${isCover ? '✓ Blog Cover' : 'Set as Cover'}</button>
       </div>
     `;
     grid.appendChild(card);
   }
+
+  // Show/hide bulk compress bar
+  const bulkBar = document.getElementById('bulkCompressBar');
+  if (largeCount > 0) {
+    document.getElementById('largeImgCount').textContent = largeCount;
+    bulkBar.style.display = 'block';
+  } else {
+    bulkBar.style.display = 'none';
+  }
 }
 
-// ─── Image upload ──────────────────────────────────────────────────────────────
+function setCoverImage(filename) {
+  state.coverImage = (state.coverImage === filename) ? null : filename; // toggle
+  // Refresh all cards to reflect new cover selection
+  for (const [fn] of Object.entries(state.images)) {
+    const card = document.getElementById('imgcard-' + CSS.escape(fn));
+    if (!card) continue;
+    const isCover = state.coverImage === fn;
+    card.classList.toggle('is-cover', isCover);
+    const btn = card.querySelector('.set-cover-btn');
+    if (btn) btn.textContent = isCover ? '✓ Blog Cover' : 'Set as Cover';
+  }
+}
+
+// ─── Image compression ────────────────────────────────────────────────────────
+const COMPRESS_TARGET = 500 * 1024; // 500 KB
+
+async function compressToTarget(blob) {
+  // Always encode to JPEG for efficient size control.
+  // PNG with transparency: canvas fills alpha as black, so we use white background.
+  const img = await createImageBitmap(blob);
+  const canvas = document.createElement('canvas');
+  canvas.width = img.width;
+  canvas.height = img.height;
+  const ctx = canvas.getContext('2d');
+  // White background for transparency
+  ctx.fillStyle = '#ffffff';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  ctx.drawImage(img, 0, 0);
+
+  // Binary-search quality between 0.10 and 0.92 (max 8 iterations)
+  let lo = 0.10, hi = 0.92, best = null;
+  for (let i = 0; i < 8; i++) {
+    const q = (lo + hi) / 2;
+    const result = await new Promise(res => canvas.toBlob(res, 'image/jpeg', q));
+    if (result.size <= COMPRESS_TARGET) {
+      best = result;
+      lo = q; // can afford higher quality
+    } else {
+      hi = q; // need lower quality
+    }
+  }
+  // Edge case: quality 0.10 still over target (very large resolution) — return lo result
+  if (!best) {
+    best = await new Promise(res => canvas.toBlob(res, 'image/jpeg', 0.10));
+  }
+  return best;
+}
+
+async function compressOneImage(filename) {
+  const imgData = state.images[filename];
+  if (!imgData) return;
+
+  const btn = document.getElementById('compbtn-' + CSS.escape(filename));
+  if (btn) { btn.disabled = true; btn.textContent = '⏳ Compressing…'; }
+
+  const compressed = await compressToTarget(imgData.blob);
+
+  // Revoke old localUrl and replace blob
+  URL.revokeObjectURL(imgData.localUrl);
+  state.images[filename].blob = compressed;
+  state.images[filename].localUrl = URL.createObjectURL(compressed);
+
+  // Update card UI
+  const card = document.getElementById('imgcard-' + CSS.escape(filename));
+  if (card) {
+    card.querySelector('.image-preview').src = state.images[filename].localUrl;
+    const sizeEl = document.getElementById('imgsize-' + CSS.escape(filename));
+    if (sizeEl) {
+      sizeEl.textContent = formatBytes(compressed.size) + ' (was ' + formatBytes(imgData.originalSize || 0) + ')';
+      sizeEl.className = 'image-size'; // remove 'large' highlight
+    }
+    if (btn) {
+      btn.disabled = false;
+      btn.textContent = '✓ Compressed';
+      btn.style.borderColor = 'var(--success)';
+      btn.style.color = 'var(--success)';
+      btn.onclick = null;
+    }
+  }
+
+  // Recalculate bulk bar
+  let largeCount = 0;
+  for (const [fn, d] of Object.entries(state.images)) {
+    if (d.blob && d.blob.size > 1048576) largeCount++;
+  }
+  const bulkBar = document.getElementById('bulkCompressBar');
+  if (largeCount > 0) {
+    document.getElementById('largeImgCount').textContent = largeCount;
+  } else {
+    bulkBar.style.display = 'none';
+  }
+}
+
+async function compressAllLargeImages() {
+  const bulkBtn = document.getElementById('bulkCompressBtn');
+  if (bulkBtn) { bulkBtn.disabled = true; bulkBtn.textContent = '⏳ Compressing…'; }
+
+  for (const [filename, imgData] of Object.entries(state.images)) {
+    if (imgData.blob && imgData.blob.size > 1048576) {
+      // Store original size before first compression
+      if (!imgData.originalSize) imgData.originalSize = imgData.blob.size;
+      await compressOneImage(filename);
+    }
+  }
+
+  if (bulkBtn) { bulkBtn.disabled = false; bulkBtn.textContent = '✓ All Done'; }
+}
+
+// ─── Image upload ─────────────────────────────────────────────────────────────
 async function uploadAllImages() {
   const s = loadSettings();
   if (!s.strapiToken) {
-    showAlert('Please set your Strapi API token in Settings first', 'warn');
+    showAlert('Set your Strapi API token in Settings first', 'warn');
     openSettings();
     return;
   }
@@ -1269,176 +2267,496 @@ async function uploadAllImages() {
   logEl.innerHTML = '';
 
   const entries = Object.entries(state.images);
-  let done = 0;
-  let errors = 0;
+  const slug = (state.filename ? stripExtension(state.filename) : '') || 'blog-image';
+  const imgCache = loadImageCache();
+  let done = 0, errors = 0, imageIndex = 1;
 
   for (const [filename, imgData] of entries) {
-    addLog(logEl, `Uploading ${filename}...`, 'info');
-    const card = document.getElementById('imgcard-' + filename);
-    if (card) { card.className = 'image-card uploading'; card.querySelector('.image-status').innerHTML = '<span class="spinner"></span> Uploading...'; }
+    const ext = filename.includes('.') ? filename.split('.').pop().toLowerCase() : 'png';
+    const uploadName = `${slug}-${imageIndex}.${ext}`;
+    imageIndex++;
+
+    const card = document.getElementById('imgcard-' + CSS.escape(filename));
+    if (card) {
+      const nameEl = card.querySelector('.image-name');
+      if (nameEl) nameEl.textContent = uploadName;
+    }
+
+    // ── Check cache by content hash ────────────────────────────────────────────
+    const hash = await hashBlob(imgData.blob);
+    state.images[filename].hash = hash; // store for post-PR cache management
+    const cached = imgCache[hash];
+    if (cached && typeof cached === 'object' && cached.url) {
+      const { url: cachedUrl, name: cachedName } = cached;
+      state.images[filename].strapiUrl = cachedUrl;
+      if (card) {
+        card.className = 'image-card uploaded' + (state.coverImage === filename ? ' is-cover' : '');
+        const nameEl = card.querySelector('.image-name');
+        if (nameEl) nameEl.textContent = cachedName || uploadName;
+        card.querySelector('.image-status').textContent = '⚡ Already uploaded';
+      }
+      addLog(logEl, `⚡ ${uploadName} → already on Strapi: ${cachedUrl}`, 'ok');
+      done++;
+      document.getElementById('progressBar').style.width = `${(done / entries.length) * 100}%`;
+      continue;
+    }
+
+    addLog(logEl, `Uploading ${filename} as ${uploadName}...`, 'info');
+    if (card) {
+      card.className = 'image-card uploading';
+      card.querySelector('.image-status').innerHTML = '<span class="spinner"></span> Uploading...';
+    }
 
     try {
       const formData = new FormData();
-      formData.append('files', imgData.blob, filename);
+      formData.append('files', imgData.blob, uploadName);
 
-      // Try /api/upload (Strapi v4) first, fallback to /upload (Strapi v3)
       let res = await fetch(`${s.strapiUrl}/api/upload`, {
         method: 'POST',
         headers: { 'Authorization': `Bearer ${s.strapiToken}` },
-        body: formData
+        body: formData,
       });
 
       if (res.status === 404 || res.status === 405) {
-        addLog(logEl, 'Trying legacy endpoint /upload...', 'info');
         res = await fetch(`${s.strapiUrl}/upload`, {
           method: 'POST',
           headers: { 'Authorization': `Bearer ${s.strapiToken}` },
-          body: formData
+          body: formData,
         });
       }
 
-      if (!res.ok) {
-        const errText = await res.text();
-        throw new Error(`HTTP ${res.status}: ${errText.slice(0, 200)}`);
-      }
+      if (!res.ok) throw new Error(`HTTP ${res.status}: ${(await res.text()).slice(0, 200)}`);
 
       const data = await res.json();
       const uploaded = Array.isArray(data) ? data[0] : data;
       const strapiUrl = uploaded.url.startsWith('http') ? uploaded.url : s.strapiUrl + uploaded.url;
 
       state.images[filename].strapiUrl = strapiUrl;
+      // Save to persistent cache keyed by content hash
+      imgCache[hash] = { url: strapiUrl, name: uploadName };
+      saveImageCache(imgCache);
 
       if (card) {
-        card.className = 'image-card uploaded';
+        card.className = 'image-card uploaded' + (state.coverImage === filename ? ' is-cover' : '');
         card.querySelector('.image-status').textContent = '✓ Uploaded';
       }
-
-      addLog(logEl, `✓ ${filename} → ${strapiUrl}`, 'ok');
+      addLog(logEl, `✓ ${uploadName} → ${strapiUrl}`, 'ok');
 
     } catch (err) {
       errors++;
-      state.images[filename].strapiUrl = null;
       if (card) {
-        card.className = 'image-card error';
+        card.className = 'image-card error' + (state.coverImage === filename ? ' is-cover' : '');
         card.querySelector('.image-status').textContent = '✕ Failed';
       }
-      addLog(logEl, `✕ ${filename}: ${err.message}`, 'err');
+      addLog(logEl, `✕ ${uploadName}: ${err.message}`, 'err');
     }
 
     done++;
     document.getElementById('progressBar').style.width = `${(done / entries.length) * 100}%`;
   }
 
-  // Replace image URLs in markdown
-  replaceImageUrlsInMarkdown();
+  // Replace blob: URLs and local refs with Strapi URLs in the final markdown
+  replaceImageUrls();
+
+  // Cover URL will be applied in preparePublishStep so it always runs
+  // regardless of whether images were uploaded (e.g. no-image docs).
 
   if (errors === 0) {
-    addLog(logEl, `All ${done} images uploaded successfully!`, 'ok');
+    addLog(logEl, `All ${done} images uploaded!`, 'ok');
     btn.innerHTML = '✓ All Uploaded';
     document.getElementById('toPublishBtn').disabled = false;
   } else {
-    addLog(logEl, `${done - errors} uploaded, ${errors} failed. You can still continue.`, 'warn');
+    addLog(logEl, `${done - errors} uploaded, ${errors} failed.`, 'warn');
     btn.disabled = false;
     btn.innerHTML = '↺ Retry Failed';
     document.getElementById('toPublishBtn').disabled = false;
   }
 }
 
-function replaceImageUrlsInMarkdown() {
-  let md = state.contentMarkdown;
+// Update or insert the cover: field in YAML frontmatter
+function updateCoverInFrontmatter(md, coverUrl) {
+  const { frontmatter, body } = splitFrontmatter(md);
+  if (!frontmatter) return md;
+  let fm = frontmatter;
+  if (/^cover\s*:/m.test(fm)) {
+    // Replace existing cover: line (including empty cover:)
+    fm = fm.replace(/^(cover\s*:).*$/m, `$1 ${coverUrl}`);
+  } else {
+    // Insert cover: before the closing ---
+    fm = fm.replace(/(\n---\n?)$/, `\ncover: ${coverUrl}$1`);
+  }
+  return fm + '\n' + body;
+}
+
+// Replace image URLs in state.finalMarkdown after Strapi upload
+function replaceImageUrls() {
+  let md = state.finalMarkdown;
   for (const [filename, imgData] of Object.entries(state.images)) {
-    if (imgData.strapiUrl) {
-      // Replace both blob URLs and original relative paths
-      const escapedLocal = imgData.localUrl.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-      md = md.replace(new RegExp(escapedLocal, 'g'), imgData.strapiUrl);
-      // Also replace original relative path patterns
-      md = md.replace(new RegExp(`images/${filename}`, 'g'), imgData.strapiUrl);
-      md = md.replace(new RegExp(filename, 'g'), imgData.strapiUrl);
+    if (!imgData.strapiUrl) continue;
+    const strapiUrl = imgData.strapiUrl;
+    const escapedFilename = filename.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const escapedLocalUrl = imgData.localUrl.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+    // Replace blob: URLs
+    md = md.replace(new RegExp(escapedLocalUrl, 'g'), strapiUrl);
+
+    // Replace markdown image syntax with local path: ![alt](path/to/filename.ext)
+    md = md.replace(
+      new RegExp(`(!\\[[^\\]]*\\]\\()(?:[^)]*\\/)?${escapedFilename}(\\))`, 'g'),
+      `$1${strapiUrl}$2`
+    );
+  }
+  state.finalMarkdown = md;
+}
+
+// ─── Image mode (Strapi vs GitHub) ────────────────────────────────────────────
+function setImageMode(mode, silent = false) {
+  state.imageMode = mode;
+  document.querySelectorAll('.mode-btn').forEach(btn =>
+    btn.classList.toggle('active', btn.dataset.mode === mode));
+
+  const isGitHub = mode === 'github';
+  document.getElementById('githubModeNote').style.display    = isGitHub ? '' : 'none';
+  document.getElementById('uploadImagesArea').style.display  = isGitHub ? 'none' : '';
+  document.getElementById('githubImagesNote').style.display  = isGitHub ? '' : 'none';
+  document.getElementById('imageFolderRow').style.display    = isGitHub ? '' : 'none';
+
+  if (!silent) {
+    const hasImages = Object.keys(state.images).length > 0;
+    if (isGitHub && hasImages) {
+      // GitHub mode: no upload needed, enable Continue immediately
+      document.getElementById('toPublishBtn').disabled = false;
+    } else if (!isGitHub && hasImages) {
+      // Back to Strapi mode: require upload unless already done
+      const allUploaded = Object.values(state.images).every(img => img.strapiUrl);
+      document.getElementById('toPublishBtn').disabled = !allUploaded;
     }
   }
-  state.contentMarkdown = md;
 }
 
-// ─── Final Markdown generation ────────────────────────────────────────────────
-function getMetaFromFields() {
-  return {
-    title: document.getElementById('f_title').value.trim(),
-    author: document.getElementById('f_author').value.trim(),
-    desc: document.getElementById('f_desc').value.trim(),
-    url: document.getElementById('f_url').value.trim(),
-    tags: document.getElementById('f_tags').value.trim(),
-    keywords: document.getElementById('f_keywords').value.trim(),
+// ─── Cover image upload (Step 2) ──────────────────────────────────────────────
+function onCoverFileSelected(event) {
+  const file = event.target.files[0];
+  if (file) showCoverPreview(file);
+}
+function onCoverDrop(event) {
+  event.preventDefault();
+  document.getElementById('coverDropZone').classList.remove('drag-over');
+  const file = event.dataTransfer.files[0];
+  if (file && file.type.startsWith('image/')) showCoverPreview(file);
+}
+function showCoverPreview(file) {
+  state._coverFile = file;
+  const hint = document.getElementById('coverDropHint');
+  const img  = document.getElementById('coverPreviewImg');
+  hint.style.display = 'none';
+  img.src = URL.createObjectURL(file);
+  img.style.display = 'block';
+  document.getElementById('coverUploadRow').style.display = 'block';
+  document.getElementById('coverUploadStatus').textContent = file.name;
+  // Clear any previous uploaded URL
+  state.externalCoverUrl = null;
+  document.getElementById('coverUrlRow').style.display = 'none';
+
+  // Size info + compress button
+  const sizeRow = document.getElementById('coverSizeRow');
+  const sizeInfo = document.getElementById('coverSizeInfo');
+  const compBtn  = document.getElementById('coverCompressBtn');
+  const isLarge = file.size > 1048576;
+  sizeInfo.textContent = formatBytes(file.size) + (isLarge ? ' — over 1 MB' : '');
+  sizeInfo.style.color = isLarge ? 'var(--warn)' : 'var(--text3)';
+  compBtn.style.display = isLarge ? 'inline-block' : 'none';
+  compBtn.disabled = false;
+  compBtn.textContent = '⚡ Compress to ~500 KB';
+  compBtn.style.borderColor = '';
+  compBtn.style.color = '';
+  compBtn.onclick = compressCoverImage;
+  sizeRow.style.display = 'flex';
+}
+
+async function uploadCoverImage() {
+  const s = loadSettings();
+  if (!s.strapiToken) { showAlert('Set your Strapi API token in Settings first', 'warn'); openSettings(); return; }
+  if (!state._coverFile) { showAlert('No cover image selected', 'warn'); return; }
+
+  const btn = document.getElementById('uploadCoverBtn');
+  const statusEl = document.getElementById('coverUploadStatus');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span> Checking...';
+  statusEl.textContent = '';
+
+  try {
+    // ── Check persistent cache by content hash ─────────────────────────────────
+    const hash = await hashBlob(state._coverFile);
+    state._coverHash = hash; // store for post-PR cache management
+    const imgCache = loadImageCache();
+    const cachedCover = imgCache[hash];
+    if (cachedCover && typeof cachedCover === 'object' && cachedCover.url) {
+      const coverUrl = cachedCover.url;
+      state.externalCoverUrl = coverUrl;
+      btn.innerHTML = '⚡ Already uploaded';
+      document.getElementById('coverUrlChip').textContent = coverUrl;
+      document.getElementById('coverUrlRow').style.display = 'block';
+      return;
+    }
+
+    btn.innerHTML = '<span class="spinner"></span> Uploading...';
+    const formData = new FormData();
+    formData.append('files', state._coverFile, state._coverFile.name);
+
+    let res = await fetch(`${s.strapiUrl}/api/upload`, {
+      method: 'POST', headers: { 'Authorization': `Bearer ${s.strapiToken}` }, body: formData,
+    });
+    if (res.status === 404 || res.status === 405) {
+      res = await fetch(`${s.strapiUrl}/upload`, {
+        method: 'POST', headers: { 'Authorization': `Bearer ${s.strapiToken}` }, body: formData,
+      });
+    }
+    if (!res.ok) throw new Error(`HTTP ${res.status}: ${(await res.text()).slice(0, 200)}`);
+
+    const data = await res.json();
+    const uploaded = Array.isArray(data) ? data[0] : data;
+    const fullUrl = uploaded.url.startsWith('http') ? uploaded.url : s.strapiUrl + uploaded.url;
+    // Strip https:// — cover field stores just the domain+path
+    const coverUrl = fullUrl.replace(/^https?:\/\//, '');
+    state.externalCoverUrl = coverUrl;
+
+    // Persist in cache
+    imgCache[hash] = { url: coverUrl, name: state._coverFile.name };
+    saveImageCache(imgCache);
+
+    btn.innerHTML = '✓ Uploaded';
+    statusEl.textContent = '';
+    document.getElementById('coverUrlChip').textContent = coverUrl;
+    document.getElementById('coverUrlRow').style.display = 'block';
+  } catch (err) {
+    btn.disabled = false;
+    btn.innerHTML = '↺ Retry';
+    statusEl.textContent = '✕ ' + err.message;
+  }
+}
+
+async function compressCoverImage() {
+  const btn      = document.getElementById('coverCompressBtn');
+  const sizeInfo = document.getElementById('coverSizeInfo');
+  const originalSize = state._coverFile.size;
+
+  btn.disabled = true;
+  btn.textContent = '⏳ Compressing…';
+
+  const compressed = await compressToTarget(state._coverFile);
+  const newName = state._coverFile.name.replace(/\.\w+$/, '.jpg');
+  state._coverFile = new File([compressed], newName, { type: 'image/jpeg' });
+
+  // Update preview
+  const img = document.getElementById('coverPreviewImg');
+  URL.revokeObjectURL(img.src);
+  img.src = URL.createObjectURL(state._coverFile);
+
+  // Update size label
+  sizeInfo.textContent = formatBytes(state._coverFile.size) + ' (was ' + formatBytes(originalSize) + ')';
+  sizeInfo.style.color = 'var(--success)';
+
+  // Update button
+  btn.disabled = false;
+  btn.textContent = '✓ Compressed';
+  btn.style.borderColor = 'var(--success)';
+  btn.style.color = 'var(--success)';
+  btn.onclick = null;
+}
+
+// ─── GitHub image helpers ──────────────────────────────────────────────────────
+function blobToBase64(blob) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onloadend = () => resolve(reader.result.split(',')[1]);
+    reader.onerror = reject;
+    reader.readAsDataURL(blob);
+  });
+}
+
+// Compute slug-based upload names, replace blob: / local refs in markdown with
+// relative paths, return {updatedMd, imageFiles:[{path, blob, name}]}.
+function prepareGitHubImages(blogFolderPath, imageFolderRelative) {
+  const slug = stripExtension(state.filename);
+  let md = state.finalMarkdown;
+  const imageFiles = [];
+  let idx = 1;
+
+  for (const [origFilename, imgData] of Object.entries(state.images)) {
+    const ext = origFilename.includes('.') ? origFilename.split('.').pop().toLowerCase() : 'png';
+    const uploadName = `${slug}-${idx}.${ext}`;
+    idx++;
+
+    // Repo path for the image file
+    const imageDir = [blogFolderPath, imageFolderRelative].filter(Boolean).join('/');
+    const repoPath = imageDir ? `${imageDir}/${uploadName}` : uploadName;
+
+    // Markdown reference (relative from the markdown file's directory)
+    const mdRef = imageFolderRelative ? `./${imageFolderRelative}/${uploadName}` : `./${uploadName}`;
+
+    // Replace blob: URL
+    if (imgData.localUrl) {
+      md = md.replace(new RegExp(imgData.localUrl.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g'), mdRef);
+    }
+    // Replace by original filename pattern
+    const escapedFn = origFilename.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    md = md.replace(
+      new RegExp(`(!\\[[^\\]]*\\]\\()(?:[^)]*\\/)?${escapedFn}(\\))`, 'g'),
+      `$1${mdRef}$2`
+    );
+
+    imageFiles.push({ path: repoPath, blob: imgData.blob, name: uploadName });
+  }
+
+  return { updatedMd: md, imageFiles };
+}
+
+// ─── Apply cover URL to YAML frontmatter ──────────────────────────────────────
+// Called when entering Step 3. Priority: external cover upload > document image.
+function applyCoverToMarkdown() {
+  let coverUrl = null;
+
+  if (state.externalCoverUrl) {
+    // Explicitly uploaded cover image
+    coverUrl = state.externalCoverUrl;
+  } else if (state.imageMode === 'strapi' && state.coverImage && state.images[state.coverImage]?.strapiUrl) {
+    // Document image designated as cover (Strapi mode only — GitHub mode has no URL yet)
+    coverUrl = state.images[state.coverImage].strapiUrl.replace(/^https?:\/\//, '');
+  }
+
+  if (coverUrl) {
+    state.finalMarkdown = updateCoverInFrontmatter(state.finalMarkdown, coverUrl);
+  }
+}
+
+// ─── Publish step setup ───────────────────────────────────────────────────────
+function buildFrontmatter() {
+  const id            = document.getElementById('fm_id').value.trim() || state.filename || 'blog-post.md';
+  const title         = document.getElementById('fm_title').value.trim();
+  const author        = document.getElementById('fm_author').value.trim();
+  const date          = document.getElementById('fm_date').value.trim();
+  const tag           = document.getElementById('fm_tag').value;
+  const recommend     = document.getElementById('fm_recommend').checked;
+  const publishMedium = document.getElementById('fm_publishToMedium').checked;
+  const tags          = document.getElementById('fm_tags').value.trim();
+  const metaKeywords  = document.getElementById('fm_meta_keywords').value.trim();
+  const metaTitle     = document.getElementById('fm_meta_title').value.trim();
+  const desc          = document.getElementById('fm_desc').value.trim();
+
+  // Cover URL — from external upload or document image set as cover
+  let cover = '';
+  if (state.externalCoverUrl) {
+    cover = state.externalCoverUrl;
+  } else if (state.coverImage) {
+    const coverImg = state.images[state.coverImage];
+    if (coverImg?.strapiUrl) {
+      cover = coverImg.strapiUrl.replace(/^https?:\/\//, '');
+    } else {
+      console.warn('[buildFrontmatter] coverImage is set to', state.coverImage,
+        'but strapiUrl is', coverImg?.strapiUrl,
+        '— images may not have been uploaded to Strapi yet');
+    }
+  }
+
+  const origin = `https://milvus.io/blog/${id}`;
+
+  // Update state for PR title and filename
+  state.title    = title;
+  state.author   = author;
+  state.filename = id;
+
+  // Always use block scalar (>) for title/meta_title/desc to safely handle colons
+  let fm = '---\n';
+  fm += `id: ${id}\n`;
+  fm += `title: >\n ${title}\n`;
+  fm += `author: ${author}\n`;
+  fm += `date: ${date}\n`;
+  fm += `cover: ${cover}\n`;
+  fm += `tag: ${tag}\n`;
+  fm += `recommend: ${recommend}\n`;
+  fm += `publishToMedium: ${publishMedium}\n`;
+  fm += `tags: ${tags}\n`;
+  fm += `meta_keywords: ${metaKeywords}\n`;
+  fm += `meta_title: >\n ${metaTitle}\n`;
+  fm += `desc: >\n ${desc}\n`;
+  fm += `origin: ${origin}\n`;
+  fm += '---\n';
+  return fm;
+}
+
+function preparePublishStep() {
+  // Strip existing frontmatter, rebuild from form fields
+  const { body } = splitFrontmatter(state.finalMarkdown);
+  const fm = buildFrontmatter();
+  state.finalMarkdown = fm + body;
+
+  // Editable markdown pane
+  const mdArea = document.getElementById('step3-md');
+  mdArea.value = state.finalMarkdown;
+  // Sync edits back to state and refresh preview
+  mdArea.oninput = () => {
+    state.finalMarkdown = mdArea.value;
+    document.getElementById('step3-preview').innerHTML = renderMarkdownHtml(state.finalMarkdown);
   };
-}
+  // Rendered preview — images are now Strapi URLs so they display correctly
+  document.getElementById('step3-preview').innerHTML = renderMarkdownHtml(state.finalMarkdown);
+  // Reset tabs to Markdown view
+  switchPreviewTab('step3', 'md');
 
-function generateFrontmatter(meta) {
-  const date = new Date().toISOString().split('T')[0];
-  const slug = meta.url || slugify(meta.title);
-  const tags = meta.tags ? meta.tags.split(',').map(t => t.trim()) : [];
-  const tagsYaml = tags.length > 0 ? `\ntag: ${tags.join(', ')}` : '';
-  return `---
-id: ${slug}
-title: ${meta.title}
-author: ${meta.author}
-date: ${date}
-desc: ${meta.desc}${tagsYaml}
-cover: 
-recommend: false
-canonicalUrl: 
----
-`;
-}
+  // Pre-fill from settings if empty
+  const s = loadSettings();
+  const repoEl   = document.getElementById('f_prRepo');
+  const branchEl = document.getElementById('f_prBranch');
+  const pathEl   = document.getElementById('f_prPath');
+  const titleEl  = document.getElementById('f_prTitle');
 
-function slugify(text) {
-  return (text || 'blog-post')
-    .toLowerCase()
-    .replace(/[^a-z0-9\s-]/g, '')
-    .trim()
-    .replace(/\s+/g, '-')
-    .replace(/-+/g, '-');
-}
-
-function prepareFinalMarkdown() {
-  const meta = getMetaFromFields();
-  const frontmatter = generateFrontmatter(meta);
-  const fullMd = frontmatter + '\n' + state.contentMarkdown;
-  state.finalMarkdown = fullMd;
-
-  document.getElementById('finalMarkdown').textContent = fullMd;
-
-  const slug = meta.url || slugify(meta.title);
-  document.getElementById('f_prTitle').value = `Blog: ${meta.title}`;
+  if (!repoEl.value)   repoEl.value   = s.ghRepo;
+  if (!branchEl.value) branchEl.value = s.ghBranch;
+  if (!pathEl.value)   pathEl.value   = s.ghPath;
+  // Always update PR title from current document (user can still edit it manually)
+  titleEl.value = state.title ? `Publish blog: ${state.title}` : '';
 }
 
 // ─── Download ─────────────────────────────────────────────────────────────────
 function downloadMarkdown() {
-  prepareFinalMarkdown();
-  const meta = getMetaFromFields();
-  const slug = meta.url || slugify(meta.title);
   const blob = new Blob([state.finalMarkdown], { type: 'text/markdown' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = `${slug}.md`;
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement('a');
+  a.href     = url;
+  a.download = state.filename || 'blog-post.md';
   a.click();
   URL.revokeObjectURL(url);
 }
 
-// ─── GitHub PR ─────────────────────────────────────────────────────────────────
+// ─── GitHub PR ────────────────────────────────────────────────────────────────
 async function createPR() {
   const s = loadSettings();
   if (!s.ghToken) {
-    showAlert('Please set your GitHub token in Settings first', 'warn');
+    showAlert('Set your GitHub token in Settings first', 'warn');
     openSettings();
     return;
   }
 
-  prepareFinalMarkdown();
-  const meta = getMetaFromFields();
-  const slug = meta.url || slugify(meta.title);
-  const prTitle = document.getElementById('f_prTitle').value.trim() || `Blog: ${meta.title}`;
-  const filePath = `${s.ghPath}/${slug}.md`;
-  const branchName = `blog/${slug}-${Date.now()}`;
+  const prRepoRaw = document.getElementById('f_prRepo').value.trim();
+  const prBranch  = document.getElementById('f_prBranch').value.trim();
+  const prPath    = document.getElementById('f_prPath').value.trim();
+  const prTitle   = document.getElementById('f_prTitle').value.trim();
+
+  if (!prRepoRaw) { showAlert('Enter the target repo (owner/repo)', 'warn'); return; }
+  if (!prBranch)  { showAlert('Enter the base branch', 'warn'); return; }
+
+  // Accept full GitHub URLs: https://github.com/owner/repo or https://github.com/owner/repo.git
+  const repoNorm = prRepoRaw.replace(/^https?:\/\/github\.com\//, '').replace(/\.git$/, '');
+  const parts = repoNorm.split('/').filter(Boolean);
+  if (parts.length < 2) { showAlert('Repo must be owner/repo format', 'error'); return; }
+  const ghOwner = parts[parts.length - 2];
+  const ghRepo  = parts[parts.length - 1];
+
+  // Build file path: use state.filename (which comes from id: field or original filename)
+  const filename   = state.filename || 'blog-post.md';
+  const filePath   = prPath ? `${prPath}/${filename}` : filename;
+  const branchName = `blog/${stripExtension(filename)}-${Date.now()}`;
 
   const btn = document.getElementById('createPrBtn');
   btn.disabled = true;
@@ -1448,115 +2766,190 @@ async function createPR() {
   const logEl = document.getElementById('prLog');
   logEl.innerHTML = '';
 
-  // Fine-grained tokens (github_pat_) and OAuth tokens (gho_/ghu_) need Bearer auth; classic tokens (ghp_) use token auth
-  const needsBearer = s.ghToken.startsWith('github_pat_') || s.ghToken.startsWith('gho_') || s.ghToken.startsWith('ghu_');
-  const authType = needsBearer ? 'Bearer' : 'token';
+  addLog(logEl, `Repo: ${ghOwner}/${ghRepo}  Branch: ${prBranch}`, 'info');
+  addLog(logEl, `File: ${filePath}`, 'info');
+
+  // Bearer works for all token types (classic PAT, fine-grained PAT, OAuth)
   const authHeaders = {
-    'Authorization': `${authType} ${s.ghToken}`,
+    'Authorization': `Bearer ${s.ghToken.trim()}`,
     'Accept': 'application/vnd.github.v3+json',
   };
-  const postHeaders = {
-    ...authHeaders,
-    'Content-Type': 'application/json'
+  const postHeaders = { ...authHeaders, 'Content-Type': 'application/json' };
+  const base = `https://api.github.com/repos/${ghOwner}/${ghRepo}`;
+
+  let _step = 'initializing';
+  const gfetch = async (step, url, opts) => {
+    _step = step;
+    try {
+      return await fetch(url, opts);
+    } catch (e) {
+      throw new Error(`[${step}] Network error — ${e.message}. Check your internet connection.`);
+    }
   };
-  const base = `https://api.github.com/repos/${s.ghOwner}/${s.ghRepo}`;
+  const ghCheck = async (res, step) => {
+    if (res.ok) return;
+    let body = '';
+    try { const j = await res.json(); body = j.message || JSON.stringify(j); } catch { body = await res.text().catch(() => ''); }
+    const hint =
+      res.status === 401 ? ' — Token invalid or expired.' :
+      res.status === 403 ? ' — Token lacks write permission (need "repo" scope for classic PAT, or "Contents: Write" for fine-grained PAT).' :
+      res.status === 404 ? ' — Not found or no write access. For org repos, check: (1) token has "Contents: Write" permission, (2) token is authorized for the org via SSO if required.' :
+      res.status === 422 ? ' — Validation error (branch may already exist?).' : '';
+    throw new Error(`[${step}] HTTP ${res.status}${hint}\n↳ GitHub says: ${body}`);
+  };
 
   try {
-    // 1. Get base branch SHA
-    addLog(logEl, `Getting base branch (${s.ghBranch})...`, 'info');
-    const refRes = await fetch(`${base}/git/refs/heads/${s.ghBranch}`, { headers: authHeaders });
-    if (!refRes.ok) throw new Error(`Can't get branch "${s.ghBranch}": HTTP ${refRes.status}. Check that the branch exists and your token has repo access.`);
+    // 0. Check write access; auto-fork if needed
+    addLog(logEl, 'Checking repository access...', 'info');
+    const userRes = await gfetch('get authenticated user', 'https://api.github.com/user', { headers: authHeaders });
+    await ghCheck(userRes, 'get authenticated user');
+    const ghUser = (await userRes.json()).login;
+
+    const repoRes = await gfetch('check repo access', base, { headers: authHeaders });
+    await ghCheck(repoRes, 'check repo access');
+    const hasPush = (await repoRes.json()).permissions?.push === true;
+
+    let workBase = base;       // API base for write ops (blob/tree/commit/branch)
+    let prHead = branchName;   // head ref for PR
+
+    if (!hasPush) {
+      addLog(logEl, `No write access — forking to ${ghUser}/${ghRepo}...`, 'info');
+      const forkRes = await gfetch('fork repo', `${base}/forks`, {
+        method: 'POST', headers: postHeaders,
+        body: JSON.stringify({ default_branch_only: true }),
+      });
+      if (!forkRes.ok && forkRes.status !== 202) await ghCheck(forkRes, 'fork repo');
+      const forkData = await forkRes.json();
+      workBase = `https://api.github.com/repos/${forkData.full_name}`;
+      prHead = `${ghUser}:${branchName}`;
+      addLog(logEl, `✓ Fork: ${forkData.full_name}`, 'ok');
+
+      // Sync fork's base branch with upstream
+      addLog(logEl, 'Syncing fork with upstream...', 'info');
+      const syncRes = await gfetch('sync fork', `${workBase}/merge-upstream`, {
+        method: 'POST', headers: postHeaders,
+        body: JSON.stringify({ branch: prBranch }),
+      });
+      if (syncRes.ok) {
+        addLog(logEl, '✓ Fork synced', 'ok');
+      } else {
+        addLog(logEl, 'Fork sync skipped (may already be up to date)', 'info');
+      }
+    } else {
+      addLog(logEl, `✓ Write access to ${ghOwner}/${ghRepo}`, 'ok');
+    }
+
+    // 1. Get base branch SHA (from workBase — fork or upstream)
+    addLog(logEl, `Getting branch "${prBranch}"...`, 'info');
+    const refRes = await gfetch(`get branch "${prBranch}"`, `${workBase}/git/refs/heads/${prBranch}`, { headers: authHeaders });
+    await ghCheck(refRes, `get branch "${prBranch}"`);
     const refData = await refRes.json();
-    // git/refs/ may return an array or a single object
-    const refObj = Array.isArray(refData) ? refData.find(r => r.ref === `refs/heads/${s.ghBranch}`) : refData;
-    if (!refObj) throw new Error(`Branch "${s.ghBranch}" not found in refs response.`);
+    const refObj  = Array.isArray(refData) ? refData.find(r => r.ref === `refs/heads/${prBranch}`) : refData;
+    if (!refObj) throw new Error(`Branch "${prBranch}" not found in response.`);
     const baseSha = refObj.object.sha;
     addLog(logEl, `✓ Base SHA: ${baseSha.slice(0,7)}`, 'ok');
 
-    // 2. Create blob
-    addLog(logEl, `Creating file blob...`, 'info');
-    const content = btoa(unescape(encodeURIComponent(state.finalMarkdown)));
-    const blobRes = await fetch(`${base}/git/blobs`, {
+    // 2. Prepare content — in GitHub mode, embed images and update paths
+    const imageFolderRelative = (document.getElementById('f_imageFolder')?.value || '').trim();
+    let finalMd = state.finalMarkdown;
+    const treeEntries = [];
+
+    if (state.imageMode === 'github' && Object.keys(state.images).length > 0) {
+      const { updatedMd, imageFiles } = prepareGitHubImages(prPath, imageFolderRelative);
+      finalMd = updatedMd;
+      addLog(logEl, `Creating blobs for ${imageFiles.length} image(s)...`, 'info');
+      for (const { path: imgPath, blob, name } of imageFiles) {
+        const b64 = await blobToBase64(blob);
+        const imgBlobRes = await gfetch(`create image blob (${name})`, `${workBase}/git/blobs`, {
+          method: 'POST', headers: postHeaders,
+          body: JSON.stringify({ content: b64, encoding: 'base64' }),
+        });
+        await ghCheck(imgBlobRes, `create image blob (${name})`);
+        treeEntries.push({ path: imgPath, mode: '100644', type: 'blob', sha: (await imgBlobRes.json()).sha });
+        addLog(logEl, `✓ Image: ${name}`, 'ok');
+      }
+    }
+
+    // Create markdown blob
+    addLog(logEl, 'Creating markdown blob...', 'info');
+    const content = btoa(unescape(encodeURIComponent(finalMd)));
+    const blobRes = await gfetch('create markdown blob', `${workBase}/git/blobs`, {
       method: 'POST', headers: postHeaders,
-      body: JSON.stringify({ content, encoding: 'base64' })
+      body: JSON.stringify({ content, encoding: 'base64' }),
     });
-    if (!blobRes.ok) throw new Error(`Blob creation failed: HTTP ${blobRes.status} - ${await blobRes.text()}`);
+    await ghCheck(blobRes, 'create markdown blob');
     const blobData = await blobRes.json();
-    addLog(logEl, `✓ File blob created`, 'ok');
+    treeEntries.push({ path: filePath, mode: '100644', type: 'blob', sha: blobData.sha });
+    addLog(logEl, `✓ Blob(s) created (${treeEntries.length} file${treeEntries.length > 1 ? 's' : ''})`, 'ok');
 
     // 3. Get base tree
-    addLog(logEl, `Getting base tree...`, 'info');
-    const commitRes = await fetch(`${base}/git/commits/${baseSha}`, { headers: authHeaders });
-    if (!commitRes.ok) throw new Error(`Can't get commit ${baseSha.slice(0,7)}: HTTP ${commitRes.status}`);
-    const commitData = await commitRes.json();
-    const baseTreeSha = commitData.tree.sha;
+    const commitRes = await gfetch('get base commit', `${workBase}/git/commits/${baseSha}`, { headers: authHeaders });
+    await ghCheck(commitRes, 'get base commit');
+    const baseTreeSha = (await commitRes.json()).tree.sha;
 
     // 4. Create tree
-    addLog(logEl, `Creating tree...`, 'info');
-    const treeRes = await fetch(`${base}/git/trees`, {
+    addLog(logEl, 'Creating tree...', 'info');
+    const treeRes = await gfetch('create tree', `${workBase}/git/trees`, {
       method: 'POST', headers: postHeaders,
-      body: JSON.stringify({
-        base_tree: baseTreeSha,
-        tree: [{ path: filePath, mode: '100644', type: 'blob', sha: blobData.sha }]
-      })
+      body: JSON.stringify({ base_tree: baseTreeSha, tree: treeEntries }),
     });
-    if (!treeRes.ok) throw new Error(`Tree creation failed: HTTP ${treeRes.status} - ${await treeRes.text()}`);
-    const treeData = await treeRes.json();
-    addLog(logEl, `✓ Tree created`, 'ok');
+    await ghCheck(treeRes, 'create tree');
+    const treeSha = (await treeRes.json()).sha;
+    addLog(logEl, '✓ Tree created', 'ok');
 
     // 5. Create commit
-    addLog(logEl, `Creating commit...`, 'info');
-    const newCommitRes = await fetch(`${base}/git/commits`, {
+    addLog(logEl, 'Creating commit...', 'info');
+    const newCommitRes = await gfetch('create commit', `${workBase}/git/commits`, {
       method: 'POST', headers: postHeaders,
       body: JSON.stringify({
-        message: `blog: add ${slug}.md`,
-        tree: treeData.sha,
-        parents: [baseSha]
-      })
+        message: `blog: add ${filename}`,
+        tree: treeSha,
+        parents: [baseSha],
+      }),
     });
-    if (!newCommitRes.ok) throw new Error(`Commit creation failed: HTTP ${newCommitRes.status} - ${await newCommitRes.text()}`);
-    const newCommitData = await newCommitRes.json();
-    addLog(logEl, `✓ Commit created`, 'ok');
+    await ghCheck(newCommitRes, 'create commit');
+    const newCommitSha = (await newCommitRes.json()).sha;
+    addLog(logEl, '✓ Commit created', 'ok');
 
-    // 6. Create branch
+    // 6. Create branch (on fork or upstream)
     addLog(logEl, `Creating branch ${branchName}...`, 'info');
-    const branchRes = await fetch(`${base}/git/refs`, {
+    const branchRes = await gfetch('create branch', `${workBase}/git/refs`, {
       method: 'POST', headers: postHeaders,
-      body: JSON.stringify({ ref: `refs/heads/${branchName}`, sha: newCommitData.sha })
+      body: JSON.stringify({ ref: `refs/heads/${branchName}`, sha: newCommitSha }),
     });
-    if (!branchRes.ok) throw new Error(`Branch creation failed: HTTP ${branchRes.status} - ${await branchRes.text()}`);
-    addLog(logEl, `✓ Branch created`, 'ok');
+    await ghCheck(branchRes, 'create branch');
+    addLog(logEl, '✓ Branch created', 'ok');
 
-    // 7. Create PR
-    addLog(logEl, `Opening PR...`, 'info');
-    const prRes = await fetch(`${base}/pulls`, {
+    // 7. Open PR (always on the upstream/target repo)
+    addLog(logEl, 'Opening PR...', 'info');
+    const prRes = await gfetch('create PR', `${base}/pulls`, {
       method: 'POST', headers: postHeaders,
       body: JSON.stringify({
-        title: prTitle,
-        head: branchName,
-        base: s.ghBranch,
-        body: `Auto-generated blog post published via Milvus Blog Publisher.\n\n**Author:** ${meta.author}\n**Slug:** ${slug}`
-      })
+        title: prTitle || `Blog: ${state.title}`,
+        head: prHead,
+        base: prBranch,
+        body: `Auto-published via Blog Publisher.\n\n**File:** \`${filePath}\`\n**Author:** ${state.author}`,
+      }),
     });
-    if (!prRes.ok) throw new Error(`PR creation failed: ${prRes.status} ${await prRes.text()}`);
+    await ghCheck(prRes, 'create PR');
     const prData = await prRes.json();
-    addLog(logEl, `✓ PR created!`, 'ok');
+    addLog(logEl, '✓ PR created!', 'ok');
 
-    // Show success
     document.getElementById('publishArea').style.display = 'none';
     document.getElementById('successArea').style.display = 'block';
-    document.getElementById('prUrl').href = prData.html_url;
+    document.getElementById('prUrl').href        = prData.html_url;
     document.getElementById('prUrl').textContent = prData.html_url;
+    showSuccessCacheInfo();
 
   } catch (err) {
-    addLog(logEl, `✕ Error: ${err.message}`, 'err');
+    addLog(logEl, `✕ ${err.message}`, 'err');
     btn.disabled = false;
     btn.innerHTML = '🚀 Retry';
     console.error(err);
   }
 }
 
-// ─── Utils ─────────────────────────────────────────────────────────────────────
+// ─── Utils ────────────────────────────────────────────────────────────────────
 function addLog(el, msg, type = '') {
   const line = document.createElement('div');
   line.className = 'log-line ' + type;
@@ -1565,48 +2958,83 @@ function addLog(el, msg, type = '') {
   el.scrollTop = el.scrollHeight;
 }
 
-let alertTimeout;
+let alertTimer;
 function showAlert(msg, type = 'info') {
   let el = document.getElementById('globalAlert');
   if (!el) {
     el = document.createElement('div');
     el.id = 'globalAlert';
-    el.style.cssText = 'position:fixed; bottom:24px; left:50%; transform:translateX(-50%); z-index:999; min-width:300px; max-width:500px;';
+    el.style.cssText = 'position:fixed;bottom:24px;left:50%;transform:translateX(-50%);z-index:999;min-width:300px;max-width:500px;';
     document.body.appendChild(el);
   }
   el.innerHTML = `<div class="alert alert-${type}">${msg}</div>`;
-  clearTimeout(alertTimeout);
-  alertTimeout = setTimeout(() => el.innerHTML = '', 3500);
+  clearTimeout(alertTimer);
+  alertTimer = setTimeout(() => { el.innerHTML = ''; }, 5000);
 }
 
 function resetAll() {
-  state = { zip: null, htmlContent: '', images: {}, contentHtml: '', contentMarkdown: '', meta: {} };
-  ['f_title','f_author','f_desc','f_url','f_tags','f_keywords'].forEach(id => {
-    const el = document.getElementById(id);
-    if (el) el.value = '';
-  });
+  state = { finalMarkdown: '', filename: '', title: '', author: '', images: {}, coverImage: null, externalCoverUrl: null, imageMode: 'strapi' };
+  setImageMode('strapi', true); // reset mode UI without touching Continue button
+
+  document.getElementById('parsedSummary').style.display = 'none';
+  // Reset upload zone to initial state
+  const zone = document.getElementById('uploadZone');
+  zone.classList.remove('uploaded');
+  document.getElementById('uploadZoneDefault').style.display = 'block';
+  document.getElementById('uploadZoneSuccess').style.display = 'none';
+  document.getElementById('uploadedFileName').textContent = '—';
+  document.getElementById('step1-md').textContent = '';
+  document.getElementById('step1-preview').innerHTML = '';
   document.getElementById('imagesGrid').innerHTML = '';
   document.getElementById('uploadProgress').style.display = 'none';
   document.getElementById('uploadLog').innerHTML = '';
+  // Reset cover upload UI
+  document.getElementById('coverDropHint').style.display = '';
+  const coverImg = document.getElementById('coverPreviewImg');
+  if (coverImg.src) { URL.revokeObjectURL(coverImg.src); coverImg.src = ''; }
+  coverImg.style.display = 'none';
+  document.getElementById('coverUploadRow').style.display = 'none';
+  document.getElementById('coverUrlRow').style.display = 'none';
+  document.getElementById('coverFileInput').value = '';
+  const coverBtn = document.getElementById('uploadCoverBtn');
+  coverBtn.disabled = false; coverBtn.innerHTML = '↑ Upload Cover to Strapi';
   document.getElementById('publishArea').style.display = 'block';
   document.getElementById('successArea').style.display = 'none';
+  document.getElementById('successCacheRow').style.display = 'none';
   document.getElementById('publishLog').style.display = 'none';
+  document.getElementById('progressBar').style.width = '0%';
   document.getElementById('toPublishBtn').disabled = true;
-  const uploadBtn = document.getElementById('uploadImagesBtn');
-  uploadBtn.disabled = false;
-  uploadBtn.innerHTML = '↑ Upload All Images to Strapi';
+  document.getElementById('uploadImagesBtn').disabled = false;
+  document.getElementById('uploadImagesBtn').innerHTML = '↑ Upload All Images to Strapi';
+  document.getElementById('uploadImagesBtn').style.display = '';
+
+  ['f_prRepo','f_prBranch','f_prPath','f_prTitle'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.value = '';
+  });
+
+  document.getElementById('fileInput').value = '';
   goTo(1);
 }
 
-// Init - show settings if not configured
 window.addEventListener('load', () => {
   const s = loadSettings();
-  if (!s.strapiToken || !s.ghToken) {
-    setTimeout(() => {
-      openSettings();
-    }, 800);
-  }
+  if (!s.strapiToken || !s.ghToken) setTimeout(openSettings, 600);
 });
 </script>
+
+<!-- ── Fullscreen preview modal ─────────────────────────────────────── -->
+<div id="previewModal" style="display:none;" onkeydown="if(event.key==='Escape')closePreviewModal()">
+  <div class="preview-modal-backdrop" onclick="closePreviewModal()">
+    <div class="preview-modal-box" onclick="event.stopPropagation()">
+      <div class="preview-modal-header">
+        <span id="previewModalTitle">Preview</span>
+        <button class="preview-modal-close" onclick="closePreviewModal()">✕</button>
+      </div>
+      <div class="preview-modal-body" id="previewModalBody"></div>
+    </div>
+  </div>
+</div>
+
 </body>
 </html>
