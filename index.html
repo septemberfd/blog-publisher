@@ -498,12 +498,12 @@
     overflow-y: auto;
     font-size: 14px;
     line-height: 1.75;
-    color: var(--text1);
+    color: var(--text);
     word-break: break-word;
   }
   .rendered-preview h1,.rendered-preview h2,.rendered-preview h3,
   .rendered-preview h4,.rendered-preview h5,.rendered-preview h6 {
-    font-weight: 700; margin: 1.4em 0 .5em; line-height: 1.3;
+    font-weight: 700; margin: 1.4em 0 .5em; line-height: 1.3; color: #fff;
   }
   .rendered-preview h1 { font-size: 1.7em; }
   .rendered-preview h2 { font-size: 1.35em; border-bottom: 1px solid var(--border); padding-bottom: .3em; }
@@ -511,7 +511,7 @@
   .rendered-preview p  { margin: .75em 0; }
   .rendered-preview a  { color: var(--accent); text-decoration: none; }
   .rendered-preview a:hover { text-decoration: underline; }
-  .rendered-preview strong { font-weight: 700; }
+  .rendered-preview strong { font-weight: 700; color: var(--warn); }
   .rendered-preview em     { font-style: italic; }
   .rendered-preview ul,.rendered-preview ol { padding-left: 1.5em; margin: .6em 0; }
   .rendered-preview li { margin: .25em 0; }
@@ -686,7 +686,7 @@
   .preview-modal-body p  { margin: .8em 0; }
   .preview-modal-body a  { color: var(--accent); text-decoration: none; }
   .preview-modal-body a:hover { text-decoration: underline; }
-  .preview-modal-body strong { font-weight: 700; }
+  .preview-modal-body strong { font-weight: 700; color: #fff; }
   .preview-modal-body em     { font-style: italic; }
   .preview-modal-body ul,.preview-modal-body ol { padding-left: 1.6em; margin: .6em 0; }
   .preview-modal-body li { margin: .3em 0; }
@@ -910,6 +910,127 @@
   }
 
   .pr-link:hover { border-color: var(--accent2); background: rgba(0, 150, 255, 0.1); }
+
+  /* ── Mode selector (New Post / Edit Existing) ──────────── */
+  .mode-selector {
+    display: flex; gap: 0; background: var(--surface);
+    border: 1px solid var(--border); border-radius: 10px;
+    padding: 4px; width: fit-content; margin: 0 auto 28px;
+  }
+  .mode-selector-btn {
+    padding: 9px 24px; font-size: 14px; font-weight: 500;
+    background: none; border: none; border-radius: 8px;
+    color: var(--text3); cursor: pointer; transition: all .15s;
+    font-family: var(--sans);
+  }
+  .mode-selector-btn:hover { color: var(--text1); }
+  .mode-selector-btn.active {
+    background: var(--accent); color: #000; font-weight: 600;
+    box-shadow: 0 1px 6px rgba(0, 212, 170, 0.25);
+  }
+
+  /* ── Update panel ──────────────────────────────────────── */
+  .update-panel { display: none; animation: fadeIn 0.25s ease; }
+  .update-panel.active { display: block; }
+
+  .sub-mode-toggle {
+    display: flex; gap: 0; background: var(--surface2);
+    border: 1px solid var(--border); border-radius: 8px;
+    padding: 3px; width: fit-content; margin-bottom: 20px;
+  }
+  .sub-mode-btn {
+    padding: 6px 18px; font-size: 13px; font-weight: 500;
+    background: none; border: none; border-radius: 6px;
+    color: var(--text3); cursor: pointer; transition: all .15s;
+    font-family: var(--sans);
+  }
+  .sub-mode-btn:hover { color: var(--text1); }
+  .sub-mode-btn.active {
+    background: var(--surface); color: var(--text1);
+    box-shadow: 0 1px 4px rgba(0,0,0,.15);
+  }
+
+  /* ── Quick edit editor ─────────────────────────────────── */
+  .quick-edit-editor {
+    width: 100%;
+    min-height: 400px;
+    background: var(--surface2);
+    border: 1px solid var(--border2);
+    border-radius: 0 0 8px 8px;
+    border-top: none;
+    padding: 16px;
+    color: var(--text);
+    font-family: var(--mono);
+    font-size: 12px;
+    line-height: 1.7;
+    resize: vertical;
+    outline: none;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+  }
+  .quick-edit-editor:focus { border-color: var(--accent); }
+
+  /* ── Quick Edit stacked layout ────────────────────────── */
+  .qe-editor-section { /* full-width editor on top */ }
+
+  /* ── Quick Edit image panel (below editor, reuses .image-card) ── */
+  .qe-image-panel {
+    margin-top: 16px;
+    border-top: 1px solid var(--border);
+    padding-top: 14px;
+  }
+  .qe-image-panel-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 10px;
+  }
+  .qe-image-panel-title {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text3);
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+  }
+  /* Reuse .images-grid for the same responsive grid layout */
+  .qe-image-panel .images-grid { margin: 0; }
+
+  /* Extra buttons inside .image-card for Quick Edit panel */
+  .replace-btn {
+    margin-top: 5px; width: 100%;
+    padding: 4px 0; font-size: 11px;
+    background: none; border: 1px solid var(--border);
+    border-radius: 4px; color: var(--text3); cursor: pointer;
+    transition: all 0.15s;
+  }
+  .replace-btn:hover { border-color: var(--accent2); color: var(--accent2); }
+  .image-card.replacing { border-color: var(--warn); box-shadow: 0 0 0 2px color-mix(in srgb, var(--warn) 20%, transparent); }
+  .delete-btn {
+    margin-top: 5px; width: 100%;
+    padding: 4px 0; font-size: 11px;
+    background: none; border: 1px solid var(--border);
+    border-radius: 4px; color: var(--text3); cursor: pointer;
+    transition: all 0.15s;
+  }
+  .delete-btn:hover { border-color: var(--error); color: var(--error); }
+
+  /* Add new image card (fits in the same grid) */
+  .qe-add-image-zone {
+    border: 2px dashed var(--border2);
+    border-radius: 8px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.2s;
+    background: var(--surface2);
+    min-height: 180px;
+  }
+  .qe-add-image-zone:hover, .qe-add-image-zone.drag-over {
+    border-color: var(--accent);
+    background: rgba(0, 212, 170, 0.05);
+  }
 </style>
 </head>
 <body>
@@ -981,6 +1102,126 @@
 </div>
 
 <main class="main">
+
+  <!-- Mode selector: New Post / Edit Existing -->
+  <div class="mode-selector" id="modeSelector">
+    <button class="mode-selector-btn active" data-appmode="new" onclick="setAppMode('new')">New Post</button>
+    <button class="mode-selector-btn" data-appmode="update" onclick="setAppMode('update')">Update Existing Blog</button>
+  </div>
+
+  <!-- ════════════════════════════════════════════════════════════════════ -->
+  <!-- UPDATE PANEL (hidden by default) -->
+  <!-- ════════════════════════════════════════════════════════════════════ -->
+  <div class="update-panel" id="updatePanel">
+
+    <!-- Sub-mode toggle: Quick Edit / Full Replace -->
+    <div class="sub-mode-toggle">
+      <button class="sub-mode-btn active" data-submode="quick" onclick="setUpdateSubMode('quick')">Quick Edit</button>
+      <button class="sub-mode-btn" data-submode="full" onclick="setUpdateSubMode('full')">Full Replace</button>
+    </div>
+
+    <!-- Locate file card (shared between sub-modes) -->
+    <div class="card" id="locateFileCard">
+      <div class="card-title">Locate Existing File</div>
+      <p class="section-subtitle">
+        Enter a blog URL (e.g. <code>https://milvus.io/blog/my-post.md</code>) or file path (e.g. <code>blog/en/my-post.md</code>).
+      </p>
+      <div class="field">
+        <label>BLOG URL OR FILE PATH</label>
+        <input type="text" id="u_filePath" placeholder="https://milvus.io/blog/my-post.md or blog/en/my-post.md" />
+      </div>
+      <div class="field-row">
+        <div class="field">
+          <label>REPO</label>
+          <input type="text" id="u_repo" placeholder="milvus-io/community" />
+        </div>
+        <div class="field">
+          <label>BRANCH</label>
+          <input type="text" id="u_branch" placeholder="master" />
+        </div>
+      </div>
+      <div style="display:flex; gap:12px; align-items:center;">
+        <button class="btn btn-primary" onclick="fetchExistingFile()" id="fetchFileBtn">Fetch File</button>
+        <span id="fetchFileStatus" style="font-size:12px; color:var(--text3);"></span>
+      </div>
+    </div>
+
+    <!-- ── Quick Edit area ──────────────────────────────────────── -->
+    <div id="quickEditArea" style="display:none;">
+      <div class="card">
+        <!-- Editor (full width) -->
+        <div class="qe-editor-section">
+          <div class="card-title">Edit Markdown</div>
+          <div class="preview-tabs">
+            <button class="preview-tab active" data-group="quickedit" data-tab="md" onclick="switchPreviewTab('quickedit','md')">Markdown</button>
+            <button class="preview-tab" data-group="quickedit" data-tab="preview" onclick="switchPreviewTab('quickedit','preview')">Preview</button>
+            <button class="preview-fullscreen-btn" onclick="openPreviewModal('quickedit')" title="Fullscreen">⛶</button>
+          </div>
+          <textarea id="quickedit-md" class="quick-edit-editor" spellcheck="false"></textarea>
+          <div id="quickedit-preview" class="rendered-preview" style="display:none; border-top:none; border-radius:0 0 8px 8px;"></div>
+        </div>
+
+        <!-- Image panel (horizontal strip below editor) -->
+        <div class="qe-image-panel" id="qeImagePanel">
+          <div class="qe-image-panel-header">
+            <div class="qe-image-panel-title">Images</div>
+          </div>
+          <div class="images-grid" id="qeImageGrid">
+            <!-- Add new image zone (always last item in the grid) -->
+            <div class="qe-add-image-zone" id="qeAddImageZone"
+                 onclick="document.getElementById('qeNewImageInput').click()"
+                 ondragover="event.preventDefault(); this.classList.add('drag-over')"
+                 ondragleave="this.classList.remove('drag-over')"
+                 ondrop="onQeAddImageDrop(event)">
+              <div style="font-size:18px; margin-bottom:2px;">+</div>
+              <div style="font-size:11px; color:var(--text3);">Add Image</div>
+            </div>
+          </div>
+          <input type="file" id="qeNewImageInput" accept="image/*" style="display:none" onchange="onQeNewImageSelected(event)">
+        </div>
+      </div>
+
+      <!-- PR form -->
+      <div class="card">
+        <div class="card-title">Create Update PR</div>
+        <div class="field">
+          <label>PR TITLE</label>
+          <input type="text" id="u_prTitle" placeholder="Update blog: ..." />
+        </div>
+        <div style="display:flex; gap:12px; flex-wrap:wrap;">
+          <button class="btn btn-primary btn-lg" onclick="createUpdatePR()" id="createUpdatePrBtn">Create Update PR</button>
+        </div>
+      </div>
+
+      <div id="updatePublishLog" style="display:none;" class="card">
+        <div class="card-title">Log</div>
+        <div class="log" id="updatePrLog"></div>
+      </div>
+
+      <div id="updateSuccessArea" style="display:none;">
+        <div class="card success-screen">
+          <div class="success-icon">🎉</div>
+          <div class="success-title">Update PR Created!</div>
+          <div class="success-sub">Your updated blog post has been submitted for review.</div>
+          <a id="updatePrUrl" href="#" target="_blank" class="pr-link">View PR on GitHub</a>
+          <br>
+          <button class="btn btn-secondary" onclick="resetUpdatePanel()">Edit another post</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Full Replace area ────────────────────────────────────── -->
+    <div id="fullReplaceArea" style="display:none;">
+      <div class="alert alert-info">
+        <span>The file at <strong id="fullReplacePathLabel">—</strong> will be overwritten. Use the wizard below to upload your new version, then create a PR.</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ════════════════════════════════════════════════════════════════════ -->
+  <!-- NEW POST WIZARD (visible by default) -->
+  <!-- ════════════════════════════════════════════════════════════════════ -->
+  <div id="newPostWizard">
 
   <!-- 3-step indicator -->
   <div class="steps">
@@ -1290,6 +1531,8 @@
     </div>
   </div>
 
+  </div><!-- /newPostWizard -->
+
 </main>
 
 <script>
@@ -1315,6 +1558,18 @@ let state = {
   externalCoverUrl: null,
   // 'strapi' | 'github'
   imageMode: 'strapi',
+
+  // ── Update mode ────────────────────────────────────────────────────────
+  // 'new' | 'update'
+  mode: 'new',
+  // 'quick' | 'full'
+  updateSubMode: 'quick',
+  // Path to the existing file in the repo (e.g. "blog/en/my-post.md")
+  existingFilePath: '',
+  // SHA of the existing file (for reference, not used in tree API)
+  existingFileSha: '',
+  // Original markdown content fetched from GitHub
+  originalMarkdown: '',
 };
 
 // ─── Settings ─────────────────────────────────────────────────────────────────
@@ -1605,10 +1860,21 @@ function convertGoogleDocToMarkdown(html) {
     },
   });
 
-  // Google Docs bold: font-weight:700+
+  // Google Docs bold: font-weight:700+ on <span>, or native <b>/<strong> tags
   td.addRule('gdocBold', {
-    filter: node => node.nodeName === 'SPAN' && /font-weight\s*:\s*([7-9]00|bold)/i.test(node.getAttribute('style') || ''),
-    replacement: content => content.trim() ? `**${content.trim()}**` : '',
+    filter: node => {
+      const name = node.nodeName;
+      if (name === 'B' || name === 'STRONG') return true;
+      if (name === 'SPAN' && /font-weight\s*:\s*([7-9]00|bold)/i.test(node.getAttribute('style') || '')) return true;
+      return false;
+    },
+    replacement: content => {
+      const trimmed = content.trim();
+      if (!trimmed) return '';
+      // Prevent double-bold: if content is already **wrapped**, don't wrap again
+      if (/^\*\*[\s\S]+\*\*$/.test(trimmed)) return trimmed;
+      return `**${trimmed}**`;
+    },
   });
 
   // Google Docs italic: font-style:italic
@@ -1632,8 +1898,56 @@ function convertGoogleDocToMarkdown(html) {
     },
   });
 
+  // Preserve video/embed HTML tags that Turndown would otherwise strip
+  td.addRule('preserveIframe', {
+    filter: 'iframe',
+    replacement: (_c, node) => {
+      const attrs = Array.from(node.attributes).map(a => `${a.name}="${a.value}"`).join(' ');
+      return `\n\n<iframe ${attrs}></iframe>\n\n`;
+    },
+  });
+  td.addRule('preserveVideo', {
+    filter: 'video',
+    replacement: (_c, node) => `\n\n${node.outerHTML}\n\n`,
+  });
+  td.addRule('preserveEmbed', {
+    filter: 'embed',
+    replacement: (_c, node) => `\n\n${node.outerHTML}\n\n`,
+  });
+
   const parser = new DOMParser();
   const doc = parser.parseFromString(html, 'text/html');
+
+  // ── Inline CSS class-based styles ────────────────────────────────────────────
+  // Google Docs HTML uses <style> blocks with classes (.c1, .c2 ...) instead of
+  // inline styles. DOMParser doesn't compute styles, so we parse the CSS text
+  // and copy font-weight / font-style / font-family to inline style attributes
+  // so that Turndown rules (gdocBold, gdocItalic, gdocCode) can detect them.
+  const boldClasses = new Set();
+  const italicClasses = new Set();
+  const monoClasses = new Set();
+  doc.querySelectorAll('style').forEach(styleEl => {
+    const css = styleEl.textContent || '';
+    for (const m of css.matchAll(/\.([\w-]+)\s*\{([^}]*)\}/g)) {
+      const cls = m[1], props = m[2];
+      if (/font-weight\s*:\s*([7-9]00|bold)/i.test(props)) boldClasses.add(cls);
+      if (/font-style\s*:\s*italic/i.test(props)) italicClasses.add(cls);
+      if (/font-family\s*:[^;]*(?:Courier|monospace|Consolas|Monaco)/i.test(props)) monoClasses.add(cls);
+    }
+  });
+  doc.querySelectorAll('span').forEach(span => {
+    for (const cls of span.classList) {
+      if (boldClasses.has(cls) && !/font-weight/i.test(span.getAttribute('style') || '')) {
+        span.style.fontWeight = '700';
+      }
+      if (italicClasses.has(cls) && !/font-style/i.test(span.getAttribute('style') || '')) {
+        span.style.fontStyle = 'italic';
+      }
+      if (monoClasses.has(cls) && !/font-family/i.test(span.getAttribute('style') || '')) {
+        span.style.fontFamily = 'Courier';
+      }
+    }
+  });
 
   // Fix Google redirect URLs (https://www.google.com/url?q=REAL_URL&...)
   doc.querySelectorAll('a[href]').forEach(a => {
@@ -1755,6 +2069,7 @@ function parseDocInfo(markdown) {
     desc:            extractField('desc'),
     recommend:       extractField('recommend'),
     publishToMedium: extractField('publishToMedium'),
+    cover:           extractField('cover'),
   };
 }
 
@@ -1829,9 +2144,9 @@ function cleanMarkdownEscapes(md) {
   // Feishu exports ``` as \`\`\` — we must restore them before splitting.
   const processed = md.replace(/\\`/g, '`');
 
-  // Phase 2: Split on actual code spans/blocks to protect their content
+  // Phase 2: Split on code spans/blocks AND HTML embed blocks to protect their content
   const segments = [];
-  const codeRe = /(`{3}[\s\S]*?`{3}|`[^`\n]+`)/g;
+  const codeRe = /(`{3}[\s\S]*?`{3}|`[^`\n]+`|<iframe[\s\S]*?<\/iframe>|<video[\s\S]*?<\/video>|<embed[^>]*\/?>)/g;
   let last = 0, m;
   while ((m = codeRe.exec(processed)) !== null) {
     if (m.index > last) segments.push({ code: false, t: processed.slice(last, m.index) });
@@ -1844,9 +2159,10 @@ function cleanMarkdownEscapes(md) {
     if (seg.code) {
       if (seg.t.startsWith('```')) {
         // Fenced code block: only remove markdown-specific over-escapes
-        // that can't be valid in any programming language (\_  \[  \]  \#).
+        // that can't be valid in any programming language (\_  \[  \]  \#  \*).
         // Everything else (\\, \n, \t, etc.) is left completely untouched.
         return seg.t
+          .replace(/\\\*/g, '*')
           .replace(/\\_/g, '_')
           .replace(/\\\[/g, '[')
           .replace(/\\\]/g, ']')
@@ -1854,6 +2170,7 @@ function cleanMarkdownEscapes(md) {
       }
       // Inline code: same treatment
       return seg.t
+        .replace(/\\\*/g, '*')
         .replace(/\\_/g, '_')
         .replace(/\\\[/g, '[')
         .replace(/\\\]/g, ']')
@@ -1861,6 +2178,7 @@ function cleanMarkdownEscapes(md) {
     }
     // Non-code text: clean all common over-escapes from Feishu/Turndown
     return seg.t
+      .replace(/\\\*/g, '*')          // \*\*bold\*\* → **bold**
       .replace(/\\_/g, '_')           // my\_var → my_var
       .replace(/\\\[/g, '[')          // \[text\] → [text]
       .replace(/\\\]/g, ']')
@@ -2714,8 +3032,17 @@ function preparePublishStep() {
   if (!repoEl.value)   repoEl.value   = s.ghRepo;
   if (!branchEl.value) branchEl.value = s.ghBranch;
   if (!pathEl.value)   pathEl.value   = s.ghPath;
-  // Always update PR title from current document (user can still edit it manually)
-  titleEl.value = state.title ? `Publish blog: ${state.title}` : '';
+
+  // Full-replace mode: pre-fill path from existing file and use "Update" prefix
+  const isFullReplace = state.mode === 'update' && state.updateSubMode === 'full' && state.existingFilePath;
+  if (isFullReplace) {
+    const existingDir = state.existingFilePath.split('/').slice(0, -1).join('/');
+    if (existingDir) pathEl.value = existingDir;
+    titleEl.value = state.title ? `Update blog: ${state.title}` : '';
+  } else {
+    // Always update PR title from current document (user can still edit it manually)
+    titleEl.value = state.title ? `Publish blog: ${state.title}` : '';
+  }
 }
 
 // ─── Download ─────────────────────────────────────────────────────────────────
@@ -2754,9 +3081,11 @@ async function createPR() {
   const ghRepo  = parts[parts.length - 1];
 
   // Build file path: use state.filename (which comes from id: field or original filename)
+  const isFullReplace = state.mode === 'update' && state.updateSubMode === 'full' && state.existingFilePath;
   const filename   = state.filename || 'blog-post.md';
-  const filePath   = prPath ? `${prPath}/${filename}` : filename;
-  const branchName = `blog/${stripExtension(filename)}-${Date.now()}`;
+  const filePath   = isFullReplace ? state.existingFilePath : (prPath ? `${prPath}/${filename}` : filename);
+  const branchPrefix = isFullReplace ? 'blog/update-' : 'blog/';
+  const branchName = `${branchPrefix}${stripExtension(filename)}-${Date.now()}`;
 
   const btn = document.getElementById('createPrBtn');
   btn.disabled = true;
@@ -2902,7 +3231,7 @@ async function createPR() {
     const newCommitRes = await gfetch('create commit', `${workBase}/git/commits`, {
       method: 'POST', headers: postHeaders,
       body: JSON.stringify({
-        message: `blog: add ${filename}`,
+        message: isFullReplace ? `blog: update ${filename}` : `blog: add ${filename}`,
         tree: treeSha,
         parents: [baseSha],
       }),
@@ -2973,8 +3302,15 @@ function showAlert(msg, type = 'info') {
 }
 
 function resetAll() {
-  state = { finalMarkdown: '', filename: '', title: '', author: '', images: {}, coverImage: null, externalCoverUrl: null, imageMode: 'strapi' };
+  state = {
+    finalMarkdown: '', filename: '', title: '', author: '', images: {},
+    coverImage: null, externalCoverUrl: null, imageMode: 'strapi',
+    mode: 'new', updateSubMode: 'quick', existingFilePath: '', existingFileSha: '', originalMarkdown: '',
+  };
   setImageMode('strapi', true); // reset mode UI without touching Continue button
+  // Reset mode selector and update panel
+  setAppMode('new');
+  resetUpdatePanel();
 
   document.getElementById('parsedSummary').style.display = 'none';
   // Reset upload zone to initial state
@@ -3015,6 +3351,667 @@ function resetAll() {
 
   document.getElementById('fileInput').value = '';
   goTo(1);
+}
+
+// ─── Mode switching (New Post / Edit Existing) ────────────────────────────────
+function setAppMode(mode) {
+  state.mode = mode;
+  document.querySelectorAll('.mode-selector-btn').forEach(btn =>
+    btn.classList.toggle('active', btn.dataset.appmode === mode));
+
+  const wizard = document.getElementById('newPostWizard');
+  const update = document.getElementById('updatePanel');
+
+  if (mode === 'new') {
+    wizard.style.display = '';
+    update.classList.remove('active');
+  } else {
+    wizard.style.display = 'none';
+    update.classList.add('active');
+    // Pre-fill repo/branch from settings
+    const s = loadSettings();
+    const repoEl = document.getElementById('u_repo');
+    const branchEl = document.getElementById('u_branch');
+    if (!repoEl.value) repoEl.value = s.ghRepo;
+    if (!branchEl.value) branchEl.value = s.ghBranch;
+  }
+}
+
+function setUpdateSubMode(subMode) {
+  state.updateSubMode = subMode;
+  document.querySelectorAll('.sub-mode-btn').forEach(btn =>
+    btn.classList.toggle('active', btn.dataset.submode === subMode));
+
+  document.getElementById('quickEditArea').style.display = subMode === 'quick' && state.existingFilePath ? '' : 'none';
+  document.getElementById('fullReplaceArea').style.display = subMode === 'full' && state.existingFilePath ? '' : 'none';
+
+  // In full replace mode, show the new post wizard inside the update panel
+  const wizard = document.getElementById('newPostWizard');
+  if (subMode === 'full' && state.existingFilePath) {
+    wizard.style.display = '';
+  } else if (state.mode === 'update') {
+    wizard.style.display = subMode === 'full' && state.existingFilePath ? '' : 'none';
+  }
+}
+
+// Convert blog URL to repo file path
+function resolveFilePath(input) {
+  let path = input.trim();
+  // Handle milvus.io/blog/slug URLs
+  const milvusMatch = path.match(/(?:https?:\/\/)?milvus\.io\/blog\/([^?#]+)/);
+  if (milvusMatch) {
+    let slug = milvusMatch[1];
+    if (!slug.endsWith('.md')) slug += '.md';
+    return `blog/en/${slug}`;
+  }
+  // Handle full GitHub URLs like github.com/owner/repo/blob/branch/path/to/file.md
+  const ghMatch = path.match(/github\.com\/[^/]+\/[^/]+\/blob\/[^/]+\/(.+)/);
+  if (ghMatch) {
+    return ghMatch[1];
+  }
+  // Already a file path
+  return path;
+}
+
+// Fetch existing file from GitHub
+async function fetchExistingFile() {
+  const s = loadSettings();
+  if (!s.ghToken) { showAlert('Set your GitHub token in Settings first', 'warn'); openSettings(); return; }
+
+  const rawInput = document.getElementById('u_filePath').value.trim();
+  if (!rawInput) { showAlert('Enter a blog URL or file path', 'warn'); return; }
+
+  const repoRaw = document.getElementById('u_repo').value.trim();
+  const branch  = document.getElementById('u_branch').value.trim() || 'master';
+
+  if (!repoRaw) { showAlert('Enter the target repo', 'warn'); return; }
+
+  const repoNorm = repoRaw.replace(/^https?:\/\/github\.com\//, '').replace(/\.git$/, '');
+  const parts = repoNorm.split('/').filter(Boolean);
+  if (parts.length < 2) { showAlert('Repo must be owner/repo format', 'error'); return; }
+  const owner = parts[parts.length - 2];
+  const repo  = parts[parts.length - 1];
+
+  const filePath = resolveFilePath(rawInput);
+
+  const btn = document.getElementById('fetchFileBtn');
+  const statusEl = document.getElementById('fetchFileStatus');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span> Fetching...';
+  statusEl.textContent = '';
+
+  try {
+    const url = `https://api.github.com/repos/${owner}/${repo}/contents/${filePath}?ref=${branch}`;
+    const token = s.ghToken.trim();
+
+    const res = await fetch(url, {
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Accept': 'application/vnd.github.v3+json',
+      },
+    });
+
+    if (!res.ok) {
+      const errData = await res.json().catch(() => ({}));
+      const hint = res.status === 401 ? ' — Check token in Settings (needs repo or Contents:Read scope).'
+                 : res.status === 404 ? ` — File "${filePath}" not found in ${owner}/${repo} (branch: ${branch}).`
+                 : '';
+      throw new Error(`HTTP ${res.status}: ${errData.message || 'Request failed'}${hint}`);
+    }
+
+    const data = await res.json();
+    const content = decodeURIComponent(escape(atob(data.content.replace(/\n/g, ''))));
+
+    state.existingFilePath = filePath;
+    state.existingFileSha = data.sha;
+    state.originalMarkdown = content;
+
+    btn.disabled = false;
+    btn.innerHTML = 'Fetch File';
+    statusEl.innerHTML = `<span style="color:var(--success);">Found: ${filePath} (${(content.length / 1024).toFixed(1)} KB)</span>`;
+
+    if (state.updateSubMode === 'quick') {
+      showQuickEditor(content, filePath, data.sha);
+    } else {
+      showFullReplaceMode(filePath);
+    }
+
+  } catch (err) {
+    btn.disabled = false;
+    btn.innerHTML = 'Fetch File';
+    statusEl.innerHTML = `<span style="color:var(--error);">${err.message}</span>`;
+  }
+}
+
+function showQuickEditor(content, filePath, sha) {
+  document.getElementById('quickEditArea').style.display = '';
+  const editor = document.getElementById('quickedit-md');
+  editor.value = content;
+
+  // Initialize cover URL from existing frontmatter
+  const info = parseDocInfo(content);
+  state.qeCoverUrl = info.cover || null;
+
+  // Set up live preview + debounced image panel rebuild
+  let panelDebounce = null;
+  editor.oninput = () => {
+    document.getElementById('quickedit-preview').innerHTML = renderMarkdownHtml(editor.value);
+    clearTimeout(panelDebounce);
+    panelDebounce = setTimeout(() => buildImagePanel(), 500);
+  };
+  document.getElementById('quickedit-preview').innerHTML = renderMarkdownHtml(content);
+  switchPreviewTab('quickedit', 'md');
+
+  // Build image panel from extracted markdown images
+  buildImagePanel();
+
+  // Pre-fill PR title
+  const slug = filePath.split('/').pop().replace(/\.md$/, '');
+  document.getElementById('u_prTitle').value = info.title
+    ? `Update blog: ${info.title}`
+    : `Update blog: ${slug}`;
+
+  // Reset success/log areas
+  document.getElementById('updatePublishLog').style.display = 'none';
+  document.getElementById('updatePrLog').innerHTML = '';
+  document.getElementById('updateSuccessArea').style.display = 'none';
+}
+
+function showFullReplaceMode(filePath) {
+  document.getElementById('fullReplaceArea').style.display = '';
+  document.getElementById('fullReplacePathLabel').textContent = filePath;
+
+  // Reset wizard state so it doesn't carry over from a previous New Post
+  state.finalMarkdown = '';
+  state.filename = '';
+  state.title = '';
+  state.author = '';
+  // Revoke old blob URLs before clearing
+  for (const [, imgData] of Object.entries(state.images)) {
+    if (imgData.localUrl) URL.revokeObjectURL(imgData.localUrl);
+  }
+  state.images = {};
+  state.coverImage = null;
+  state.externalCoverUrl = null;
+
+  // Reset wizard UI
+  const zone = document.getElementById('uploadZone');
+  zone.classList.remove('uploaded');
+  document.getElementById('uploadZoneDefault').style.display = 'block';
+  document.getElementById('uploadZoneSuccess').style.display = 'none';
+  document.getElementById('uploadedFileName').textContent = '—';
+  document.getElementById('parsedSummary').style.display = 'none';
+  document.getElementById('step1-md').textContent = '';
+  document.getElementById('step1-preview').innerHTML = '';
+  document.getElementById('imagesGrid').innerHTML = '';
+  document.getElementById('uploadProgress').style.display = 'none';
+  document.getElementById('uploadLog').innerHTML = '';
+  document.getElementById('coverDropHint').style.display = '';
+  const coverImg = document.getElementById('coverPreviewImg');
+  if (coverImg.src) { URL.revokeObjectURL(coverImg.src); coverImg.src = ''; }
+  coverImg.style.display = 'none';
+  document.getElementById('coverUploadRow').style.display = 'none';
+  document.getElementById('coverUrlRow').style.display = 'none';
+  document.getElementById('coverFileInput').value = '';
+  const coverBtn = document.getElementById('uploadCoverBtn');
+  coverBtn.disabled = false; coverBtn.innerHTML = '↑ Upload Cover to Strapi';
+  document.getElementById('publishArea').style.display = 'block';
+  document.getElementById('successArea').style.display = 'none';
+  document.getElementById('successCacheRow').style.display = 'none';
+  document.getElementById('publishLog').style.display = 'none';
+  document.getElementById('progressBar').style.width = '0%';
+  document.getElementById('toPublishBtn').disabled = true;
+  document.getElementById('uploadImagesBtn').disabled = false;
+  document.getElementById('uploadImagesBtn').innerHTML = '↑ Upload All Images to Strapi';
+  document.getElementById('uploadImagesBtn').style.display = '';
+  document.getElementById('fileInput').value = '';
+  goTo(1);
+
+  // Show the wizard for uploading new version
+  document.getElementById('newPostWizard').style.display = '';
+}
+
+// ─── Quick Edit: Image Panel ───────────────────────────────────────────────────
+
+/** Extract all ![alt](url) references from markdown */
+function extractImagesFromMarkdown(md) {
+  const images = [];
+  const re = /!\[([^\]]*)\]\(([^)]+)\)/g;
+  let match;
+  while ((match = re.exec(md)) !== null) {
+    images.push({ alt: match[1], url: match[2], fullMatch: match[0], index: match.index });
+  }
+  return images;
+}
+
+/** Build the image panel from current editor content */
+function buildImagePanel() {
+  const editor = document.getElementById('quickedit-md');
+  const grid = document.getElementById('qeImageGrid');
+  const md = editor.value;
+  const images = extractImagesFromMarkdown(md);
+  state.qeImages = images;
+
+  // Read current cover from frontmatter
+  const info = parseDocInfo(md);
+  const currentCover = info.cover || '';
+
+  // Remove all existing image cards (keep the add-zone)
+  grid.querySelectorAll('.image-card').forEach(c => c.remove());
+  const oldHint = grid.querySelector('.qe-no-images');
+  if (oldHint) oldHint.remove();
+  const addZone = document.getElementById('qeAddImageZone');
+
+  if (images.length === 0) {
+    const hint = document.createElement('div');
+    hint.className = 'qe-no-images';
+    hint.style.cssText = 'font-size:12px; color:var(--text3); padding:8px; grid-column: 1 / -1;';
+    hint.textContent = 'No images in markdown.';
+    grid.insertBefore(hint, addZone);
+    return;
+  }
+
+  const uploadedUrls = state.qeStrapiIds || {};
+
+  images.forEach((img) => {
+    const isCover = currentCover && img.url.includes(currentCover.replace(/^https?:\/\//, ''));
+    const isNewlyUploaded = !!uploadedUrls[img.url];
+    const card = document.createElement('div');
+    card.className = 'image-card' + (isCover ? ' is-cover' : '');
+    card.dataset.qeUrl = img.url;
+
+    const altText = img.alt || 'image';
+    const truncUrl = img.url.length > 35 ? '...' + img.url.slice(-32) : img.url;
+    const escapedUrl = img.url.replace(/'/g, "\\'");
+
+    card.innerHTML = `
+      <div class="cover-badge">COVER</div>
+      <img class="image-preview" src="${img.url}" alt="${altText}"
+           onerror="this.style.background='var(--surface)'; this.style.opacity='0.3';">
+      <div class="image-info">
+        <div class="image-name" title="${img.url}">${truncUrl}</div>
+        <div class="image-status">${altText}</div>
+        <button class="set-cover-btn" onclick="setCoverFromPanel('${escapedUrl}')">${isCover ? '✓ Blog Cover' : 'Set as Cover'}</button>
+        <button class="replace-btn" onclick="onReplaceImage('${escapedUrl}')">Replace Image</button>
+        ${isNewlyUploaded ? `<button class="delete-btn" onclick="deleteImageFromEditor('${escapedUrl}')">Delete Image</button>` : ''}
+      </div>
+    `;
+    grid.insertBefore(card, addZone);
+  });
+}
+
+/** Delete an image reference from the editor markdown and from Strapi */
+async function deleteImageFromEditor(url) {
+  const editor = document.getElementById('quickedit-md');
+
+  // Remove the full ![alt](url) match from markdown
+  const escaped = url.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  editor.value = editor.value.replace(new RegExp(`!\\[[^\\]]*\\]\\(${escaped}\\)\\n?`, 'g'), '');
+  document.getElementById('quickedit-preview').innerHTML = renderMarkdownHtml(editor.value);
+  buildImagePanel();
+
+  // Delete from Strapi (only called for newly-uploaded images which have a tracked ID)
+  try {
+    const strapiId = state.qeStrapiIds && state.qeStrapiIds[url];
+    if (strapiId) {
+      await deleteFromStrapi(strapiId);
+      delete state.qeStrapiIds[url];
+    }
+  } catch (err) {
+    console.warn('Strapi delete failed:', err.message);
+  }
+}
+
+/** Replace an image URL in the editor textarea */
+function replaceImageInEditor(oldUrl, newUrl) {
+  const editor = document.getElementById('quickedit-md');
+  editor.value = editor.value.split(oldUrl).join(newUrl);
+  document.getElementById('quickedit-preview').innerHTML = renderMarkdownHtml(editor.value);
+  buildImagePanel();
+}
+
+/** Handle Replace button: open file picker, upload, replace URL */
+function onReplaceImage(oldUrl) {
+  const input = document.createElement('input');
+  input.type = 'file';
+  input.accept = 'image/*';
+  input.onchange = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    // Mark card as replacing
+    const card = document.querySelector(`.image-card[data-qe-url="${CSS.escape(oldUrl)}"]`);
+    if (card) card.classList.add('replacing');
+
+    try {
+      const result = await uploadToStrapi(file);
+      // Track the new Strapi ID for potential deletion later
+      if (!state.qeStrapiIds) state.qeStrapiIds = {};
+      state.qeStrapiIds[result.url] = result.id;
+      replaceImageInEditor(oldUrl, result.url);
+    } catch (err) {
+      showAlert(`Upload failed: ${err.message}`, 'error');
+      if (card) card.classList.remove('replacing');
+    }
+  };
+  input.click();
+}
+
+/** Set an image as cover from the panel */
+function setCoverFromPanel(url) {
+  const editor = document.getElementById('quickedit-md');
+  const coverUrl = url.replace(/^https?:\/\//, '');
+  state.qeCoverUrl = coverUrl;
+  editor.value = updateCoverInFrontmatter(editor.value, coverUrl);
+  document.getElementById('quickedit-preview').innerHTML = renderMarkdownHtml(editor.value);
+  buildImagePanel();
+}
+
+/** Upload a file to Strapi (with compression if > 500 KB). Returns { url, id }. */
+async function uploadToStrapi(file) {
+  const s = loadSettings();
+  if (!s.strapiToken) { showAlert('Set your Strapi API token in Settings first', 'warn'); openSettings(); throw new Error('No Strapi token'); }
+
+  // Compress if over target size
+  let blob = file;
+  let uploadName = file.name;
+  if (file.size > COMPRESS_TARGET) {
+    blob = await compressToTarget(file);
+    uploadName = uploadName.replace(/\.[^.]+$/, '.jpg');
+  }
+
+  const formData = new FormData();
+  formData.append('files', blob, uploadName);
+
+  let res = await fetch(`${s.strapiUrl}/api/upload`, {
+    method: 'POST',
+    headers: { 'Authorization': `Bearer ${s.strapiToken}` },
+    body: formData,
+  });
+  if (res.status === 404 || res.status === 405) {
+    res = await fetch(`${s.strapiUrl}/upload`, {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${s.strapiToken}` },
+      body: formData,
+    });
+  }
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+
+  const data = await res.json();
+  const uploaded = Array.isArray(data) ? data[0] : data;
+  const fullUrl = uploaded.url.startsWith('http') ? uploaded.url : s.strapiUrl + uploaded.url;
+  return { url: fullUrl, id: uploaded.id };
+}
+
+/** Delete a file from Strapi by its ID */
+async function deleteFromStrapi(fileId) {
+  const s = loadSettings();
+  if (!s.strapiToken || !fileId) return;
+
+  let res = await fetch(`${s.strapiUrl}/api/upload/files/${fileId}`, {
+    method: 'DELETE',
+    headers: { 'Authorization': `Bearer ${s.strapiToken}` },
+  });
+  if (res.status === 404 || res.status === 405) {
+    res = await fetch(`${s.strapiUrl}/upload/files/${fileId}`, {
+      method: 'DELETE',
+      headers: { 'Authorization': `Bearer ${s.strapiToken}` },
+    });
+  }
+  return res.ok;
+}
+
+/** Add a new image: upload to Strapi, insert markdown at cursor, refresh panel */
+async function addNewImageToEditor(file) {
+  const editor = document.getElementById('quickedit-md');
+  const zone = document.getElementById('qeAddImageZone');
+  const origHtml = zone.innerHTML;
+  zone.innerHTML = '<span class="spinner" style="width:14px; height:14px;"></span> <span style="font-size:12px; color:var(--text3);">Uploading...</span>';
+
+  try {
+    const result = await uploadToStrapi(file);
+    // Track the Strapi ID for potential deletion later
+    if (!state.qeStrapiIds) state.qeStrapiIds = {};
+    state.qeStrapiIds[result.url] = result.id;
+    const alt = file.name.replace(/\.[^.]+$/, '').replace(/[-_]/g, ' ');
+    const snippet = `![${alt}](${result.url})`;
+
+    // Insert at cursor position (or end)
+    const pos = editor.selectionStart || editor.value.length;
+    const before = editor.value.slice(0, pos);
+    const after = editor.value.slice(pos);
+    const needNewline = before.length > 0 && !before.endsWith('\n') ? '\n' : '';
+    editor.value = before + needNewline + snippet + '\n' + after;
+
+    document.getElementById('quickedit-preview').innerHTML = renderMarkdownHtml(editor.value);
+    buildImagePanel();
+  } catch (err) {
+    showAlert(`Upload failed: ${err.message}`, 'error');
+  } finally {
+    zone.innerHTML = origHtml;
+  }
+}
+
+/** Handle file input for adding new image */
+function onQeNewImageSelected(event) {
+  const file = event.target.files[0];
+  if (file) addNewImageToEditor(file);
+  event.target.value = '';
+}
+
+/** Handle drop on Add New Image zone */
+function onQeAddImageDrop(event) {
+  event.preventDefault();
+  document.getElementById('qeAddImageZone').classList.remove('drag-over');
+  const file = event.dataTransfer.files[0];
+  if (file && file.type.startsWith('image/')) addNewImageToEditor(file);
+}
+
+// ─── Create Update PR (Quick Edit mode) ────────────────────────────────────────
+async function createUpdatePR() {
+  const s = loadSettings();
+  if (!s.ghToken) { showAlert('Set your GitHub token in Settings first', 'warn'); openSettings(); return; }
+  if (!state.existingFilePath) { showAlert('Fetch a file first', 'warn'); return; }
+
+  const repoRaw  = document.getElementById('u_repo').value.trim();
+  const branch   = document.getElementById('u_branch').value.trim() || 'master';
+  const prTitle  = document.getElementById('u_prTitle').value.trim();
+  const editor   = document.getElementById('quickedit-md');
+
+  if (!repoRaw) { showAlert('Enter the target repo', 'warn'); return; }
+
+  const repoNorm = repoRaw.replace(/^https?:\/\/github\.com\//, '').replace(/\.git$/, '');
+  const parts = repoNorm.split('/').filter(Boolean);
+  if (parts.length < 2) { showAlert('Repo must be owner/repo format', 'error'); return; }
+  const ghOwner = parts[parts.length - 2];
+  const ghRepo  = parts[parts.length - 1];
+
+  let finalMd = editor.value;
+
+  const filename = state.existingFilePath.split('/').pop();
+  const slug = filename.replace(/\.md$/, '');
+  const branchName = `blog/update-${slug}-${Date.now()}`;
+  const filePath = state.existingFilePath;
+
+  const btn = document.getElementById('createUpdatePrBtn');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span> Creating PR...';
+
+  document.getElementById('updatePublishLog').style.display = 'block';
+  const logEl = document.getElementById('updatePrLog');
+  logEl.innerHTML = '';
+
+  const authHeaders = {
+    'Authorization': `Bearer ${s.ghToken.trim()}`,
+    'Accept': 'application/vnd.github.v3+json',
+  };
+  const postHeaders = { ...authHeaders, 'Content-Type': 'application/json' };
+  const base = `https://api.github.com/repos/${ghOwner}/${ghRepo}`;
+
+  const gfetch = async (step, url, opts) => {
+    try { return await fetch(url, opts); }
+    catch (e) { throw new Error(`[${step}] Network error — ${e.message}`); }
+  };
+  const ghCheck = async (res, step) => {
+    if (res.ok) return;
+    let body = '';
+    try { const j = await res.json(); body = j.message || JSON.stringify(j); } catch { body = await res.text().catch(() => ''); }
+    const hint =
+      res.status === 401 ? ' — Token invalid or expired.' :
+      res.status === 403 ? ' — Token lacks write permission.' :
+      res.status === 404 ? ' — Not found or no write access.' : '';
+    throw new Error(`[${step}] HTTP ${res.status}${hint}\n${body}`);
+  };
+
+  try {
+    // Check access
+    addLog(logEl, 'Checking repository access...', 'info');
+    const userRes = await gfetch('get user', 'https://api.github.com/user', { headers: authHeaders });
+    await ghCheck(userRes, 'get user');
+    const ghUser = (await userRes.json()).login;
+
+    const repoRes = await gfetch('check repo', base, { headers: authHeaders });
+    await ghCheck(repoRes, 'check repo');
+    const hasPush = (await repoRes.json()).permissions?.push === true;
+
+    let workBase = base;
+    let prHead = branchName;
+
+    if (!hasPush) {
+      addLog(logEl, `No write access — forking to ${ghUser}/${ghRepo}...`, 'info');
+      const forkRes = await gfetch('fork repo', `${base}/forks`, {
+        method: 'POST', headers: postHeaders,
+        body: JSON.stringify({ default_branch_only: true }),
+      });
+      if (!forkRes.ok && forkRes.status !== 202) await ghCheck(forkRes, 'fork repo');
+      const forkData = await forkRes.json();
+      workBase = `https://api.github.com/repos/${forkData.full_name}`;
+      prHead = `${ghUser}:${branchName}`;
+      addLog(logEl, `Fork: ${forkData.full_name}`, 'ok');
+
+      const syncRes = await gfetch('sync fork', `${workBase}/merge-upstream`, {
+        method: 'POST', headers: postHeaders,
+        body: JSON.stringify({ branch }),
+      });
+      if (syncRes.ok) addLog(logEl, 'Fork synced', 'ok');
+    } else {
+      addLog(logEl, `Write access to ${ghOwner}/${ghRepo}`, 'ok');
+    }
+
+    // 1. Get base branch SHA
+    addLog(logEl, `Getting branch "${branch}"...`, 'info');
+    const refRes = await gfetch('get branch', `${workBase}/git/refs/heads/${branch}`, { headers: authHeaders });
+    await ghCheck(refRes, 'get branch');
+    const refData = await refRes.json();
+    const refObj = Array.isArray(refData) ? refData.find(r => r.ref === `refs/heads/${branch}`) : refData;
+    if (!refObj) throw new Error(`Branch "${branch}" not found`);
+    const baseSha = refObj.object.sha;
+    addLog(logEl, `Base SHA: ${baseSha.slice(0,7)}`, 'ok');
+
+    // 2. Create blob
+    addLog(logEl, 'Creating blob...', 'info');
+    const content = btoa(unescape(encodeURIComponent(finalMd)));
+    const blobRes = await gfetch('create blob', `${workBase}/git/blobs`, {
+      method: 'POST', headers: postHeaders,
+      body: JSON.stringify({ content, encoding: 'base64' }),
+    });
+    await ghCheck(blobRes, 'create blob');
+    const blobSha = (await blobRes.json()).sha;
+    addLog(logEl, 'Blob created', 'ok');
+
+    // 3. Get base tree
+    const commitRes = await gfetch('get commit', `${workBase}/git/commits/${baseSha}`, { headers: authHeaders });
+    await ghCheck(commitRes, 'get commit');
+    const baseTreeSha = (await commitRes.json()).tree.sha;
+
+    // 4. Create tree
+    addLog(logEl, 'Creating tree...', 'info');
+    const treeRes = await gfetch('create tree', `${workBase}/git/trees`, {
+      method: 'POST', headers: postHeaders,
+      body: JSON.stringify({
+        base_tree: baseTreeSha,
+        tree: [{ path: filePath, mode: '100644', type: 'blob', sha: blobSha }],
+      }),
+    });
+    await ghCheck(treeRes, 'create tree');
+    const treeSha = (await treeRes.json()).sha;
+    addLog(logEl, 'Tree created', 'ok');
+
+    // 5. Create commit
+    addLog(logEl, 'Creating commit...', 'info');
+    const newCommitRes = await gfetch('create commit', `${workBase}/git/commits`, {
+      method: 'POST', headers: postHeaders,
+      body: JSON.stringify({
+        message: `blog: update ${filename}`,
+        tree: treeSha,
+        parents: [baseSha],
+      }),
+    });
+    await ghCheck(newCommitRes, 'create commit');
+    const newCommitSha = (await newCommitRes.json()).sha;
+    addLog(logEl, 'Commit created', 'ok');
+
+    // 6. Create branch
+    addLog(logEl, `Creating branch ${branchName}...`, 'info');
+    const branchRes = await gfetch('create branch', `${workBase}/git/refs`, {
+      method: 'POST', headers: postHeaders,
+      body: JSON.stringify({ ref: `refs/heads/${branchName}`, sha: newCommitSha }),
+    });
+    await ghCheck(branchRes, 'create branch');
+    addLog(logEl, 'Branch created', 'ok');
+
+    // 7. Open PR
+    addLog(logEl, 'Opening PR...', 'info');
+    const prRes = await gfetch('create PR', `${base}/pulls`, {
+      method: 'POST', headers: postHeaders,
+      body: JSON.stringify({
+        title: prTitle || `Update blog: ${slug}`,
+        head: prHead,
+        base: branch,
+        body: `Updated via Blog Publisher.\n\n**File:** \`${filePath}\``,
+      }),
+    });
+    await ghCheck(prRes, 'create PR');
+    const prData = await prRes.json();
+    addLog(logEl, 'PR created!', 'ok');
+
+    document.getElementById('updateSuccessArea').style.display = 'block';
+    document.getElementById('updatePrUrl').href = prData.html_url;
+    document.getElementById('updatePrUrl').textContent = prData.html_url;
+
+  } catch (err) {
+    addLog(logEl, `${err.message}`, 'err');
+    btn.disabled = false;
+    btn.innerHTML = 'Retry';
+    console.error(err);
+  }
+}
+
+function resetUpdatePanel() {
+  state.existingFilePath = '';
+  state.existingFileSha = '';
+  state.originalMarkdown = '';
+  state.qeImages = [];
+  state.qeCoverUrl = null;
+  state.qeStrapiIds = {};
+
+  document.getElementById('u_filePath').value = '';
+  document.getElementById('fetchFileStatus').textContent = '';
+  document.getElementById('quickEditArea').style.display = 'none';
+  document.getElementById('fullReplaceArea').style.display = 'none';
+  document.getElementById('updatePublishLog').style.display = 'none';
+  document.getElementById('updatePrLog').innerHTML = '';
+  document.getElementById('updateSuccessArea').style.display = 'none';
+
+  // Clear image cards (keep the add-zone)
+  const grid = document.getElementById('qeImageGrid');
+  if (grid) {
+    grid.querySelectorAll('.image-card, .qe-no-images').forEach(c => c.remove());
+  }
+
+  const createBtn = document.getElementById('createUpdatePrBtn');
+  createBtn.disabled = false;
+  createBtn.innerHTML = 'Create Update PR';
 }
 
 window.addEventListener('load', () => {
