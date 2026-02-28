@@ -911,6 +911,44 @@
 
   .pr-link:hover { border-color: var(--accent2); background: rgba(0, 150, 255, 0.1); }
 
+  /* ── Zilliz / Strapi publish form ─────────────────────── */
+  .zilliz-tag-chips {
+    display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px;
+  }
+  .zilliz-tag-chip {
+    padding: 6px 14px; font-size: 13px; font-weight: 500;
+    background: var(--surface2); border: 1px solid var(--border2);
+    border-radius: 6px; color: var(--text2); cursor: pointer;
+    transition: all .15s; user-select: none;
+  }
+  .zilliz-tag-chip:hover { border-color: var(--accent); color: var(--text); }
+  .zilliz-tag-chip.selected {
+    background: color-mix(in srgb, var(--accent) 15%, transparent);
+    border-color: var(--accent); color: var(--accent); font-weight: 600;
+  }
+  .zilliz-cover-preview {
+    width: 120px; height: 80px; object-fit: cover;
+    border-radius: 6px; border: 1px solid var(--border);
+    background: var(--bg); display: block; margin-top: 6px;
+  }
+  .zilliz-section-label {
+    font-size: 11px; font-weight: 600; color: var(--text3);
+    letter-spacing: 0.08em; text-transform: uppercase;
+    margin: 20px 0 12px; padding-top: 16px;
+    border-top: 1px solid var(--border);
+  }
+  .zilliz-checkbox-row {
+    display: flex; flex-wrap: wrap; gap: 16px; margin-top: 8px;
+  }
+  .strapi-admin-link {
+    display: inline-block; background: var(--surface2);
+    border: 1px solid var(--border2); border-radius: 8px;
+    padding: 12px 20px; color: var(--accent2);
+    text-decoration: none; font-family: var(--mono);
+    font-size: 13px; transition: all 0.15s; margin-bottom: 24px;
+  }
+  .strapi-admin-link:hover { border-color: var(--accent2); background: rgba(0, 150, 255, 0.1); }
+
   /* ── Mode selector (New Post / Edit Existing) ──────────── */
   .mode-selector {
     display: flex; gap: 0; background: var(--surface);
@@ -923,7 +961,21 @@
     color: var(--text3); cursor: pointer; transition: all .15s;
     font-family: var(--sans);
   }
-  .mode-selector-btn:hover { color: var(--text1); }
+  .mode-selector-btn:hover { color: var(--text); }
+  .milvus-dropdown-wrap { position: relative; }
+  .milvus-dropdown {
+    display: none; position: absolute; top: calc(100% + 6px); left: 50%; transform: translateX(-50%);
+    background: var(--surface); border: 1px solid var(--border2); border-radius: 8px;
+    padding: 4px; min-width: 160px; z-index: 50;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.3);
+  }
+  .milvus-dropdown.open { display: block; }
+  .milvus-dropdown-item {
+    display: block; width: 100%; padding: 8px 16px; font-size: 13px;
+    background: none; border: none; border-radius: 6px; color: var(--text2);
+    cursor: pointer; text-align: left; font-family: var(--sans); transition: all .12s;
+  }
+  .milvus-dropdown-item:hover { background: var(--surface2); color: var(--text); }
   .mode-selector-btn.active {
     background: var(--accent); color: #000; font-weight: 600;
     box-shadow: 0 1px 6px rgba(0, 212, 170, 0.25);
@@ -1103,10 +1155,16 @@
 
 <main class="main">
 
-  <!-- Mode selector: New Post / Edit Existing -->
+  <!-- Mode selector: Zilliz / Milvus (with dropdown) -->
   <div class="mode-selector" id="modeSelector">
-    <button class="mode-selector-btn active" data-appmode="new" onclick="setAppMode('new')">New Post</button>
-    <button class="mode-selector-btn" data-appmode="update" onclick="setAppMode('update')">Update Existing Blog</button>
+    <button class="mode-selector-btn active" data-appmode="zilliz" onclick="setAppMode('zilliz')">Publish to Zilliz</button>
+    <div class="milvus-dropdown-wrap">
+      <button class="mode-selector-btn" data-appmode="milvus" onclick="toggleMilvusDropdown()" id="milvusBtn">Publish to Milvus ▾</button>
+      <div class="milvus-dropdown" id="milvusDropdown">
+        <button class="milvus-dropdown-item" onclick="setAppMode('new')">New Post</button>
+        <button class="milvus-dropdown-item" onclick="setAppMode('update')">Update Existing</button>
+      </div>
+    </div>
   </div>
 
   <!-- ════════════════════════════════════════════════════════════════════ -->
@@ -1292,59 +1350,62 @@
             <div class="doc-stat-value" id="sum_words">0</div>
           </div>
         </div>
-        <div class="card-title" style="margin-top:16px; margin-bottom:6px;">Blog Metadata</div>
-        <div class="field">
-          <label>TITLE</label>
-          <input type="text" id="fm_title" placeholder="Blog post title" />
-        </div>
-        <div class="field">
-          <label>ID (SLUG)</label>
-          <input type="text" id="fm_id" placeholder="my-blog-post.md" />
-          <div class="field-hint">Auto-generated from title. Edit to shorten.</div>
-        </div>
-        <div class="field-row" style="grid-template-columns: 1fr 1fr 1fr;">
+        <!-- Milvus metadata form (hidden in Zilliz mode) -->
+        <div id="milvusMetaFields">
+          <div class="card-title" style="margin-top:16px; margin-bottom:6px;">Blog Metadata</div>
           <div class="field">
-            <label>AUTHOR</label>
-            <input type="text" id="fm_author" placeholder="Author Name" />
+            <label>TITLE</label>
+            <input type="text" id="fm_title" placeholder="Blog post title" />
           </div>
           <div class="field">
-            <label>DATE</label>
-            <input type="text" id="fm_date" placeholder="2026-1-19" />
+            <label>ID (SLUG)</label>
+            <input type="text" id="fm_id" placeholder="my-blog-post.md" />
+            <div class="field-hint">Auto-generated from title. Edit to shorten.</div>
+          </div>
+          <div class="field-row" style="grid-template-columns: 1fr 1fr 1fr;">
+            <div class="field">
+              <label>AUTHOR</label>
+              <input type="text" id="fm_author" placeholder="Author Name" />
+            </div>
+            <div class="field">
+              <label>DATE</label>
+              <input type="text" id="fm_date" placeholder="2026-1-19" />
+            </div>
+            <div class="field">
+              <label>TAG</label>
+              <select id="fm_tag">
+                <option value="Engineering">Engineering</option>
+                <option value="Announcements">Announcements</option>
+                <option value="Tutorials">Tutorials</option>
+                <option value="Use Cases">Use Cases</option>
+              </select>
+            </div>
           </div>
           <div class="field">
-            <label>TAG</label>
-            <select id="fm_tag">
-              <option value="Engineering">Engineering</option>
-              <option value="Announcements">Announcements</option>
-              <option value="Tutorials">Tutorials</option>
-              <option value="Use Cases">Use Cases</option>
-            </select>
+            <label>TAGS</label>
+            <input type="text" id="fm_tags" value="Milvus, vector database" />
           </div>
-        </div>
-        <div class="field">
-          <label>TAGS</label>
-          <input type="text" id="fm_tags" value="Milvus, vector database" />
-        </div>
-        <div class="field">
-          <label>META TITLE</label>
-          <input type="text" id="fm_meta_title" placeholder="SEO title — keep under 60 chars" />
-        </div>
-        <div class="field">
-          <label>META KEYWORDS</label>
-          <input type="text" id="fm_meta_keywords" placeholder="keyword1, keyword2, ..." />
-        </div>
-        <div class="field">
-          <label>DESCRIPTION</label>
-          <textarea id="fm_desc" rows="3" placeholder="SEO description — keep under 155 chars"></textarea>
-        </div>
-        <div class="field-row">
-          <div class="field-checkbox">
-            <input type="checkbox" id="fm_recommend" />
-            <label for="fm_recommend">Recommend</label>
+          <div class="field">
+            <label>META TITLE</label>
+            <input type="text" id="fm_meta_title" placeholder="SEO title — keep under 60 chars" />
           </div>
-          <div class="field-checkbox">
-            <input type="checkbox" id="fm_publishToMedium" checked />
-            <label for="fm_publishToMedium">Publish to Medium</label>
+          <div class="field">
+            <label>META KEYWORDS</label>
+            <input type="text" id="fm_meta_keywords" placeholder="keyword1, keyword2, ..." />
+          </div>
+          <div class="field">
+            <label>DESCRIPTION</label>
+            <textarea id="fm_desc" rows="3" placeholder="SEO description — keep under 155 chars"></textarea>
+          </div>
+          <div class="field-row">
+            <div class="field-checkbox">
+              <input type="checkbox" id="fm_recommend" />
+              <label for="fm_recommend">Recommend</label>
+            </div>
+            <div class="field-checkbox">
+              <input type="checkbox" id="fm_publishToMedium" checked />
+              <label for="fm_publishToMedium">Publish to Medium</label>
+            </div>
           </div>
         </div>
       </div>
@@ -1505,6 +1566,134 @@
       </div>
     </div>
 
+    <!-- ── Strapi / Zilliz publish area (hidden by default) ── -->
+    <div id="strapiPublishArea" style="display:none;">
+      <div class="card">
+        <div class="card-title">Step 3 — Publish to Zilliz (Draft)</div>
+        <p class="section-subtitle">Auto-filled from your document. Review, adjust if needed, then push.</p>
+
+        <div class="field">
+          <label>TITLE *</label>
+          <input type="text" id="z_title" placeholder="Blog title" />
+        </div>
+        <div class="field">
+          <label>SLUG (URL) *</label>
+          <input type="text" id="z_slug" placeholder="my-blog-post" />
+          <div class="field-hint">zilliz.com/blog/{slug}</div>
+        </div>
+        <div class="field-row">
+          <div class="field">
+            <label>DATE *</label>
+            <input type="text" id="z_displayTime" placeholder="2026-2-28" />
+          </div>
+          <div class="field">
+            <label>AUTHOR</label>
+            <input type="text" id="z_author" list="z_authorList" placeholder="Type to search..." autocomplete="off" />
+            <datalist id="z_authorList"></datalist>
+          </div>
+        </div>
+        <div class="field">
+          <label>ABSTRACT *</label>
+          <textarea id="z_abstract" rows="3" placeholder="Short description for the blog listing"></textarea>
+          <div class="field-hint" style="color:var(--text3);">Also used as Meta Description unless overridden below.</div>
+        </div>
+
+        <div class="field">
+          <label>TAGS</label>
+          <div class="zilliz-tag-chips" id="z_tagChips">
+            <!-- populated dynamically from Strapi -->
+          </div>
+          <div class="field-hint" id="z_tagLoadHint" style="display:none;">Loading tags from Strapi...</div>
+        </div>
+
+        <div class="field">
+          <label>COVER IMAGE</label>
+          <div id="z_coverPreviewWrap" style="display:none;">
+            <img id="z_coverPreview" class="zilliz-cover-preview" alt="cover" />
+            <div class="field-hint" id="z_coverInfo"></div>
+          </div>
+          <div id="z_coverNone" class="field-hint">No cover detected. You can set one in Strapi after pushing.</div>
+        </div>
+
+        <div class="field">
+          <label>CANONICAL URL</label>
+          <input type="text" id="z_canonicalUrl" placeholder="https://zilliz.com/blog/my-blog-post" />
+          <div class="field-hint">Auto from slug. Edit if reposting from another site.</div>
+        </div>
+
+        <div class="zilliz-section-label">SEO (optional)</div>
+        <div class="field">
+          <label>META TITLE</label>
+          <input type="text" id="z_metaTitle" placeholder="SEO title — keep under 60 chars" />
+        </div>
+        <div class="field">
+          <label>META DESCRIPTION</label>
+          <input type="text" id="z_metaDesc" placeholder="Defaults to Abstract — override here if different" />
+        </div>
+        <div class="field">
+          <label>META KEYWORDS</label>
+          <input type="text" id="z_metaKeywords" placeholder="keyword1, keyword2, ..." />
+        </div>
+
+        <div class="zilliz-section-label">Syndication</div>
+        <div class="zilliz-checkbox-row">
+          <div class="field-checkbox">
+            <input type="checkbox" id="z_repostMedium" checked />
+            <label for="z_repostMedium">Repost to Medium</label>
+          </div>
+          <div class="field-checkbox">
+            <input type="checkbox" id="z_repostDevto" />
+            <label for="z_repostDevto">Repost to Dev.to</label>
+          </div>
+          <div class="field-checkbox">
+            <input type="checkbox" id="z_invisible" />
+            <label for="z_invisible">Invisible</label>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="field">
+          <label>CONTENT PREVIEW</label>
+          <div class="preview-tabs">
+            <button class="preview-tab active" data-group="zilliz" data-tab="md" onclick="switchPreviewTab('zilliz','md')">Markdown</button>
+            <button class="preview-tab" data-group="zilliz" data-tab="preview" onclick="switchPreviewTab('zilliz','preview')">Preview</button>
+            <button class="preview-fullscreen-btn" onclick="openPreviewModal('zilliz')" title="Fullscreen">⛶</button>
+          </div>
+          <textarea id="zilliz-md" class="md-preview pane" spellcheck="false" style="min-height:260px;"></textarea>
+          <div id="zilliz-preview" class="rendered-preview" style="display:none;"></div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div style="display:flex; gap: 12px; flex-wrap: wrap;">
+          <button class="btn btn-secondary" onclick="downloadMarkdown()">⬇ Download .md</button>
+          <button class="btn btn-primary btn-lg" onclick="pushToStrapiDraft()" id="pushStrapiBtn">Push to Strapi (Draft)</button>
+        </div>
+        <p style="font-size: 12px; color: var(--warn); margin-top: 12px;">
+          Created as draft. Review in Strapi admin before publishing.
+        </p>
+      </div>
+
+      <div id="strapiPublishLog" style="display:none;" class="card">
+        <div class="card-title">Log</div>
+        <div class="log" id="strapiLog"></div>
+      </div>
+    </div>
+
+    <div id="strapiSuccessArea" style="display:none;">
+      <div class="card success-screen">
+        <div class="success-icon">🎉</div>
+        <div class="success-title" id="strapiSuccessTitle">Draft Created!</div>
+        <div class="success-sub">Your blog post has been pushed to Strapi as a draft.</div>
+        <a id="strapiEntryUrl" href="#" target="_blank" class="strapi-admin-link">Open in Strapi Admin</a>
+        <div style="margin-top: 16px; display: flex; gap: 12px; justify-content: center;">
+          <button class="btn btn-secondary" onclick="goBackToStrapiForm()">← Edit & Re-push</button>
+          <button class="btn btn-secondary" onclick="location.reload()">New post</button>
+        </div>
+      </div>
+    </div>
+
     <div id="successArea" style="display:none;">
       <div class="card success-screen">
         <div class="success-icon">🎉</div>
@@ -1522,7 +1711,7 @@
           </div>
         </div>
         <br>
-        <button class="btn btn-secondary" onclick="resetAll()">Publish another post</button>
+        <button class="btn btn-secondary" onclick="location.reload()">Publish another post</button>
       </div>
     </div>
 
@@ -1960,12 +2149,44 @@ function convertGoogleDocToMarkdown(html) {
     }
   });
 
+  // Convert data: URI images to blobs and add to state.images
+  // Google Docs sometimes embeds small images as base64 data URIs
+  let dataImgIdx = 0;
+  doc.querySelectorAll('img').forEach(img => {
+    const src = img.getAttribute('src') || '';
+    if (!src.startsWith('data:')) return;
+    try {
+      const match = src.match(/^data:(image\/\w+);base64,(.+)$/);
+      if (!match) return;
+      const mime = match[1];
+      const ext = mime.split('/')[1] || 'png';
+      const binary = atob(match[2]);
+      const bytes = new Uint8Array(binary.length);
+      for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+      const blob = new Blob([bytes], { type: mime });
+      const localUrl = URL.createObjectURL(blob);
+      const filename = `data_image_${++dataImgIdx}.${ext}`;
+      state.images[filename] = { blob, localUrl, strapiUrl: null, originalSize: blob.size };
+      img.setAttribute('src', localUrl);
+    } catch (e) { console.warn('[data URI extract]', e); }
+  });
+
   // Rewrite img src to blob URLs before converting
   doc.querySelectorAll('img').forEach(img => {
     const src = img.getAttribute('src') || '';
+    // Skip already-rewritten blob: URLs
+    if (src.startsWith('blob:') || src.startsWith('data:')) return;
     const filename = src.split('/').pop().split('?')[0];
     if (state.images[filename]) {
       img.setAttribute('src', state.images[filename].localUrl);
+    } else {
+      // Try URL-decoded filename (handles %20 → space, etc.)
+      try {
+        const decoded = decodeURIComponent(filename);
+        if (decoded !== filename && state.images[decoded]) {
+          img.setAttribute('src', state.images[decoded].localUrl);
+        }
+      } catch {}
     }
   });
 
@@ -2157,24 +2378,10 @@ function cleanMarkdownEscapes(md) {
 
   return segments.map(seg => {
     if (seg.code) {
-      if (seg.t.startsWith('```')) {
-        // Fenced code block: only remove markdown-specific over-escapes
-        // that can't be valid in any programming language (\_  \[  \]  \#  \*).
-        // Everything else (\\, \n, \t, etc.) is left completely untouched.
-        return seg.t
-          .replace(/\\\*/g, '*')
-          .replace(/\\_/g, '_')
-          .replace(/\\\[/g, '[')
-          .replace(/\\\]/g, ']')
-          .replace(/\\#/g, '#');
-      }
-      // Inline code: same treatment
-      return seg.t
-        .replace(/\\\*/g, '*')
-        .replace(/\\_/g, '_')
-        .replace(/\\\[/g, '[')
-        .replace(/\\\]/g, ']')
-        .replace(/\\#/g, '#');
+      // Code blocks & inline code: remove ALL Turndown over-escapes.
+      // Turndown escapes markdown-special chars (\ * _ [ ] { } ( ) # + - . ! | ~ >)
+      // which are meaningless inside code — strip them all in one pass.
+      return seg.t.replace(/\\([\\*_\[\]{}()#+\-.!|~>])/g, '$1');
     }
     // Non-code text: clean all common over-escapes from Feishu/Turndown
     return seg.t
@@ -2356,39 +2563,45 @@ function showParsedSummary(markdown) {
   const today = new Date();
   const todayStr = `${today.getFullYear()}-${today.getMonth() + 1}-${today.getDate()}`;
 
-  const titleVal = info.title || bodyMeta.title || state.title || '';
-  document.getElementById('fm_title').value         = titleVal;
-  document.getElementById('fm_id').value            = info.id || titleToSlug(titleVal);
-  document.getElementById('fm_author').value        = info.author || bodyMeta.author || state.author || '';
-  document.getElementById('fm_date').value          = info.date || todayStr;
-  document.getElementById('fm_meta_title').value    = info.meta_title || '';
-  document.getElementById('fm_meta_keywords').value = info.meta_keywords || '';
-  document.getElementById('fm_desc').value          = info.desc || '';
-  document.getElementById('fm_recommend').checked   = info.recommend === 'true';
-  document.getElementById('fm_publishToMedium').checked = info.publishToMedium !== 'false';
+  const isZilliz = state.mode === 'zilliz';
 
-  // Auto-update slug when title changes (unless user has manually edited slug)
-  let slugManuallyEdited = !!info.id;
-  document.getElementById('fm_id').addEventListener('input', () => { slugManuallyEdited = true; });
-  document.getElementById('fm_title').addEventListener('input', () => {
-    if (!slugManuallyEdited) {
-      document.getElementById('fm_id').value = titleToSlug(document.getElementById('fm_title').value);
+  // In Zilliz mode: hide entire milvus metadata form (all fields are in Step 3)
+  document.getElementById('milvusMetaFields').style.display = isZilliz ? 'none' : '';
+
+  if (!isZilliz) {
+    // Milvus mode: populate all metadata fields
+    const titleVal = info.title || bodyMeta.title || state.title || '';
+    document.getElementById('fm_title').value         = titleVal;
+    document.getElementById('fm_id').value            = info.id || titleToSlug(titleVal);
+    document.getElementById('fm_author').value        = info.author || bodyMeta.author || state.author || '';
+    document.getElementById('fm_date').value          = info.date || todayStr;
+    document.getElementById('fm_meta_title').value    = info.meta_title || '';
+    document.getElementById('fm_meta_keywords').value = info.meta_keywords || '';
+    document.getElementById('fm_desc').value          = info.desc || '';
+    document.getElementById('fm_recommend').checked   = info.recommend === 'true';
+    document.getElementById('fm_publishToMedium').checked = info.publishToMedium !== 'false';
+
+    // Auto-update slug when title changes (unless user has manually edited slug)
+    let slugManuallyEdited = !!info.id;
+    document.getElementById('fm_id').addEventListener('input', () => { slugManuallyEdited = true; });
+    document.getElementById('fm_title').addEventListener('input', () => {
+      if (!slugManuallyEdited) {
+        document.getElementById('fm_id').value = titleToSlug(document.getElementById('fm_title').value);
+      }
+    });
+
+    setupSeoCounter('fm_meta_title', 60);
+    setupSeoCounter('fm_desc', 155);
+
+    if (info.tag) {
+      const sel = document.getElementById('fm_tag');
+      if (!Array.from(sel.options).some(o => o.value === info.tag)) {
+        sel.insertAdjacentHTML('beforeend', `<option value="${info.tag}">${info.tag}</option>`);
+      }
+      sel.value = info.tag;
     }
-  });
-
-  // SEO character counters
-  setupSeoCounter('fm_meta_title', 60);
-  setupSeoCounter('fm_desc', 155);
-
-  if (info.tag) {
-    const sel = document.getElementById('fm_tag');
-    // Add option if not in list
-    if (!Array.from(sel.options).some(o => o.value === info.tag)) {
-      sel.insertAdjacentHTML('beforeend', `<option value="${info.tag}">${info.tag}</option>`);
-    }
-    sel.value = info.tag;
+    if (info.tags) document.getElementById('fm_tags').value = info.tags;
   }
-  if (info.tags) document.getElementById('fm_tags').value = info.tags;
 
   document.getElementById('parsedSummary').style.display = 'block';
 
@@ -2607,6 +2820,7 @@ async function uploadAllImages() {
     if (cached && typeof cached === 'object' && cached.url) {
       const { url: cachedUrl, name: cachedName } = cached;
       state.images[filename].strapiUrl = cachedUrl;
+      state.images[filename].strapiMediaId = cached.id || null;
       if (card) {
         card.className = 'image-card uploaded' + (state.coverImage === filename ? ' is-cover' : '');
         const nameEl = card.querySelector('.image-name');
@@ -2650,8 +2864,9 @@ async function uploadAllImages() {
       const strapiUrl = uploaded.url.startsWith('http') ? uploaded.url : s.strapiUrl + uploaded.url;
 
       state.images[filename].strapiUrl = strapiUrl;
+      state.images[filename].strapiMediaId = uploaded.id || null;
       // Save to persistent cache keyed by content hash
-      imgCache[hash] = { url: strapiUrl, name: uploadName };
+      imgCache[hash] = { url: strapiUrl, name: uploadName, id: uploaded.id || null };
       saveImageCache(imgCache);
 
       if (card) {
@@ -2715,7 +2930,7 @@ function replaceImageUrls() {
     const escapedFilename = filename.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
     const escapedLocalUrl = imgData.localUrl.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
-    // Replace blob: URLs
+    // Replace blob: URLs (exact match)
     md = md.replace(new RegExp(escapedLocalUrl, 'g'), strapiUrl);
 
     // Replace markdown image syntax with local path: ![alt](path/to/filename.ext)
@@ -2723,8 +2938,29 @@ function replaceImageUrls() {
       new RegExp(`(!\\[[^\\]]*\\]\\()(?:[^)]*\\/)?${escapedFilename}(\\))`, 'g'),
       `$1${strapiUrl}$2`
     );
+
+    // Also try URL-encoded filename (handles spaces → %20, etc.)
+    const encodedFilename = encodeURIComponent(filename);
+    if (encodedFilename !== filename) {
+      const escapedEncoded = encodedFilename.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      md = md.replace(
+        new RegExp(`(!\\[[^\\]]*\\]\\()(?:[^)]*\\/)?${escapedEncoded}(\\))`, 'g'),
+        `$1${strapiUrl}$2`
+      );
+    }
   }
   state.finalMarkdown = md;
+
+  // Diagnostic: warn about remaining broken image references
+  const remaining = [...md.matchAll(/!\[[^\]]*\]\(([^)]+)\)/g)];
+  const broken = remaining.filter(m => {
+    const url = m[1].trim();
+    return url.startsWith('blob:') || url.startsWith('data:') ||
+      (!url.startsWith('http') && !url.startsWith('//'));
+  });
+  if (broken.length > 0) {
+    console.warn('[replaceImageUrls] Remaining non-HTTP image refs:', broken.map(m => m[1]));
+  }
 }
 
 // ─── Image mode (Strapi vs GitHub) ────────────────────────────────────────────
@@ -2812,6 +3048,7 @@ async function uploadCoverImage() {
     if (cachedCover && typeof cachedCover === 'object' && cachedCover.url) {
       const coverUrl = cachedCover.url;
       state.externalCoverUrl = coverUrl;
+      state.externalCoverStrapiId = cachedCover.id || null;
       btn.innerHTML = '⚡ Already uploaded';
       document.getElementById('coverUrlChip').textContent = coverUrl;
       document.getElementById('coverUrlRow').style.display = 'block';
@@ -2838,9 +3075,10 @@ async function uploadCoverImage() {
     // Strip https:// — cover field stores just the domain+path
     const coverUrl = fullUrl.replace(/^https?:\/\//, '');
     state.externalCoverUrl = coverUrl;
+    state.externalCoverStrapiId = uploaded.id || null;
 
     // Persist in cache
-    imgCache[hash] = { url: coverUrl, name: state._coverFile.name };
+    imgCache[hash] = { url: coverUrl, name: state._coverFile.name, id: uploaded.id || null };
     saveImageCache(imgCache);
 
     btn.innerHTML = '✓ Uploaded';
@@ -3004,10 +3242,35 @@ function buildFrontmatter() {
 }
 
 function preparePublishStep() {
-  // Strip existing frontmatter, rebuild from form fields
+  if (state.mode === 'zilliz') {
+    // ── Zilliz / Strapi mode ──
+    // Do NOT call buildFrontmatter() — the fm_ fields are empty in zilliz mode.
+    // Use the original markdown as-is for field extraction.
+    document.getElementById('publishArea').style.display = 'none';
+    document.getElementById('strapiPublishArea').style.display = 'block';
+    document.getElementById('strapiSuccessArea').style.display = 'none';
+    // Update push button text if this is a re-push
+    const pushBtn = document.getElementById('pushStrapiBtn');
+    pushBtn.disabled = false;
+    pushBtn.innerHTML = state.strapiEntryId ? `Update Strapi Draft (ID: ${state.strapiEntryId})` : 'Push to Strapi (Draft)';
+    // Only re-populate form if the source markdown changed (e.g. new file uploaded).
+    // If user just navigated back and forth, preserve their edits.
+    if (state._lastPopulatedMd !== state.finalMarkdown) {
+      populateZillizForm(state.finalMarkdown);
+      state._lastPopulatedMd = state.finalMarkdown;
+    }
+    return;
+  }
+
+  // ── GitHub PR mode (new / update) ──
+  // Strip existing frontmatter, rebuild from milvus form fields
   const { body } = splitFrontmatter(state.finalMarkdown);
   const fm = buildFrontmatter();
   state.finalMarkdown = fm + body;
+
+  document.getElementById('publishArea').style.display = 'block';
+  document.getElementById('strapiPublishArea').style.display = 'none';
+  document.getElementById('strapiSuccessArea').style.display = 'none';
 
   // Editable markdown pane
   const mdArea = document.getElementById('step3-md');
@@ -3301,15 +3564,468 @@ function showAlert(msg, type = 'info') {
   alertTimer = setTimeout(() => { el.innerHTML = ''; }, 5000);
 }
 
+// ─── Strapi / Zilliz publish functions ──────────────────────────────────────────
+
+/** Fetch tags and authors from Strapi CMS — called once on entering zilliz mode */
+async function fetchStrapiMetadata() {
+  if (state.strapiTags && state.strapiAuthors) return; // already cached
+  const s = loadSettings();
+  if (!s.strapiToken) return;
+  const headers = { 'Authorization': `Bearer ${s.strapiToken}` };
+
+  // Show loading hint
+  const tagHint = document.getElementById('z_tagLoadHint');
+  if (tagHint) tagHint.style.display = '';
+
+  try {
+    // Fetch tags
+    let res = await fetch(`${s.strapiUrl}/tags`, { headers });
+    if (!res.ok) res = await fetch(`${s.strapiUrl}/api/tags`, { headers });
+    if (res.ok) {
+      const data = await res.json();
+      state.strapiTags = (Array.isArray(data) ? data : data.data || [])
+        .map(t => ({ id: t.id, name: t.name || t.attributes?.name }))
+        .filter(t => t.name);
+    } else {
+      state.strapiTags = [];
+    }
+  } catch { state.strapiTags = []; }
+
+  try {
+    // Fetch authors (paginated — get up to 200)
+    let res = await fetch(`${s.strapiUrl}/authors?_limit=200`, { headers });
+    if (!res.ok) res = await fetch(`${s.strapiUrl}/api/authors?pagination[pageSize]=200`, { headers });
+    if (res.ok) {
+      const data = await res.json();
+      state.strapiAuthors = (Array.isArray(data) ? data : data.data || [])
+        .map(a => ({ id: a.id, name: a.name || a.attributes?.name }))
+        .filter(a => a.name);
+    } else {
+      state.strapiAuthors = [];
+    }
+  } catch { state.strapiAuthors = []; }
+
+  // Hide loading hint
+  if (tagHint) tagHint.style.display = 'none';
+
+  // Populate tag chips
+  populateStrapiTagChips();
+
+  // Populate author datalist
+  populateStrapiAuthorList();
+}
+
+/** Rebuild tag chips from cached state.strapiTags */
+function populateStrapiTagChips() {
+  const chipContainer = document.getElementById('z_tagChips');
+  chipContainer.innerHTML = '';
+  (state.strapiTags || []).forEach(tag => {
+    const chip = document.createElement('span');
+    chip.className = 'zilliz-tag-chip';
+    chip.textContent = tag.name;
+    chip.dataset.tagId = tag.id;
+    chip.onclick = () => chip.classList.toggle('selected');
+    chipContainer.appendChild(chip);
+  });
+}
+
+/** Rebuild author datalist from cached state.strapiAuthors */
+function populateStrapiAuthorList() {
+  const datalist = document.getElementById('z_authorList');
+  datalist.innerHTML = '';
+  (state.strapiAuthors || []).forEach(a => {
+    const opt = document.createElement('option');
+    opt.value = a.name;
+    datalist.appendChild(opt);
+  });
+}
+
+/** Auto-fill Zilliz form fields from frontmatter */
+function populateZillizForm(markdown) {
+  const { frontmatter, body } = splitFrontmatter(markdown);
+  const info = parseDocInfo(frontmatter || markdown);
+  const { body: mdBody } = splitFrontmatter(markdown);
+  const bodyMeta = extractBodyMeta(mdBody);
+
+  // Required fields
+  const titleVal = info.title || bodyMeta.title || state.title || '';
+  document.getElementById('z_title').value = titleVal;
+
+  // Slug: from frontmatter id, or auto-generate from title
+  const rawSlug = info.id ? info.id.replace(/\.md$/, '') : '';
+  const slug = rawSlug || titleToSlug(titleVal).replace(/\.md$/, '');
+  document.getElementById('z_slug').value = slug;
+  document.getElementById('z_abstract').value = info.desc || '';
+
+  // Title → slug auto-sync (unless user manually edits slug)
+  // Use a shared state object so listeners are only added once
+  if (!populateZillizForm._listenersSet) {
+    populateZillizForm._listenersSet = true;
+    populateZillizForm._slugManual = false;
+    populateZillizForm._metaDescManual = false;
+    document.getElementById('z_slug').addEventListener('input', () => { populateZillizForm._slugManual = true; });
+    document.getElementById('z_title').addEventListener('input', () => {
+      if (!populateZillizForm._slugManual) {
+        const newSlug = titleToSlug(document.getElementById('z_title').value).replace(/\.md$/, '');
+        document.getElementById('z_slug').value = newSlug;
+        const canon = document.getElementById('z_canonicalUrl');
+        if (canon.value.startsWith('https://zilliz.com/blog/') || !canon.value) {
+          canon.value = newSlug ? `https://zilliz.com/blog/${newSlug}` : '';
+        }
+      }
+    });
+    document.getElementById('z_slug').addEventListener('input', () => {
+      const s = document.getElementById('z_slug').value.trim();
+      const canon = document.getElementById('z_canonicalUrl');
+      if (canon.value.startsWith('https://zilliz.com/blog/') || !canon.value) {
+        canon.value = s ? `https://zilliz.com/blog/${s}` : '';
+      }
+    });
+    document.getElementById('z_metaDesc').addEventListener('input', () => { populateZillizForm._metaDescManual = true; });
+    document.getElementById('z_abstract').addEventListener('input', () => {
+      if (!populateZillizForm._metaDescManual) {
+        document.getElementById('z_metaDesc').value = document.getElementById('z_abstract').value;
+        document.getElementById('z_metaDesc').dispatchEvent(new Event('input', { bubbles: true }));
+      }
+    });
+  }
+  // Reset sync flags for each new form population
+  populateZillizForm._slugManual = !!rawSlug;
+  populateZillizForm._metaDescManual = false;
+
+  // Display time — simple text, default to today
+  if (info.date) {
+    document.getElementById('z_displayTime').value = info.date;
+  } else {
+    const today = new Date();
+    document.getElementById('z_displayTime').value = `${today.getFullYear()}-${today.getMonth() + 1}-${today.getDate()}`;
+  }
+
+  // Canonical URL — auto from slug, editable for reposts
+  document.getElementById('z_canonicalUrl').value = slug ? `https://zilliz.com/blog/${slug}` : '';
+
+  // Ensure chips/datalist are populated (in case form loads before API returns)
+  populateStrapiTagChips();
+  populateStrapiAuthorList();
+
+  // Tags — match frontmatter tag against cached tags (case-insensitive)
+  if (info.tag && state.strapiTags) {
+    const fmTag = info.tag.toLowerCase().trim();
+    document.querySelectorAll('.zilliz-tag-chip').forEach(chip => {
+      const tagName = chip.textContent.toLowerCase();
+      chip.classList.toggle('selected',
+        tagName === fmTag ||
+        tagName.includes(fmTag) ||
+        fmTag.includes(tagName));
+    });
+  }
+
+  // Author — from frontmatter, or from body "by Author" line
+  const authorVal = info.author || bodyMeta.author || '';
+  document.getElementById('z_author').value = authorVal;
+
+  // Cover image — check state first (external upload or article image marked as cover),
+  // then fall back to frontmatter cover field
+  let coverUrl = null;
+  if (state.externalCoverUrl) {
+    coverUrl = state.externalCoverUrl;
+  } else if (state.coverImage && state.images[state.coverImage]?.strapiUrl) {
+    coverUrl = state.images[state.coverImage].strapiUrl;
+  } else if (info.cover) {
+    coverUrl = info.cover;
+  }
+  if (coverUrl) {
+    const fullUrl = coverUrl.startsWith('http') ? coverUrl : `https://${coverUrl}`;
+    document.getElementById('z_coverPreview').src = fullUrl;
+    document.getElementById('z_coverPreviewWrap').style.display = 'block';
+    document.getElementById('z_coverInfo').textContent = coverUrl;
+    document.getElementById('z_coverNone').style.display = 'none';
+  } else {
+    document.getElementById('z_coverPreviewWrap').style.display = 'none';
+    document.getElementById('z_coverNone').style.display = '';
+  }
+
+  // SEO fields
+  document.getElementById('z_metaTitle').value = info.meta_title || info.title || '';
+  document.getElementById('z_metaDesc').value = info.desc || '';
+  document.getElementById('z_metaKeywords').value = info.meta_keywords || '';
+
+  // SEO character counters
+  setupSeoCounter('z_metaTitle', 60);
+  setupSeoCounter('z_metaDesc', 155);
+
+  // Syndication
+  const publishMediumRaw = info.publishToMedium;
+  const mediumOn = publishMediumRaw === null || publishMediumRaw === undefined ||
+    publishMediumRaw === 'true' || publishMediumRaw === true;
+  document.getElementById('z_repostMedium').checked = mediumOn;
+  document.getElementById('z_repostDevto').checked = false;
+  document.getElementById('z_invisible').checked = false;
+
+  // Body-only content preview (no frontmatter)
+  const bodyOnly = body.trim();
+  const mdArea = document.getElementById('zilliz-md');
+  mdArea.value = bodyOnly;
+  mdArea.oninput = () => {
+    document.getElementById('zilliz-preview').innerHTML = renderMarkdownHtml(mdArea.value);
+  };
+  document.getElementById('zilliz-preview').innerHTML = renderMarkdownHtml(bodyOnly);
+  switchPreviewTab('zilliz', 'md');
+}
+
+/** Resolve cover image Strapi media ID from URL */
+async function resolveStrapiCoverId(coverUrl) {
+  if (!coverUrl) return null;
+  const s = loadSettings();
+  if (!s.strapiToken) return null;
+  const headers = { 'Authorization': `Bearer ${s.strapiToken}` };
+
+  // Extract filename from URL (without query params)
+  const filename = coverUrl.split('/').pop().split('?')[0];
+  if (!filename) return null;
+
+  // Helper: parse response into files array
+  const parseFiles = async (res) => {
+    if (!res.ok) return [];
+    const data = await res.json();
+    return Array.isArray(data) ? data : data.data || [];
+  };
+
+  try {
+    // Strategy 1: exact name match (Strapi v3)
+    let files = await parseFiles(await fetch(`${s.strapiUrl}/upload/files?name=${encodeURIComponent(filename)}`, { headers }));
+    if (files.length > 0) return files[0].id;
+
+    // Strategy 2: contains search — Strapi often prefixes filenames with a hash (abc123_filename.jpg)
+    files = await parseFiles(await fetch(`${s.strapiUrl}/upload/files?name_contains=${encodeURIComponent(filename)}`, { headers }));
+    if (files.length > 0) return files[0].id;
+
+    // Strategy 3: Strapi v4 filter syntax
+    files = await parseFiles(await fetch(`${s.strapiUrl}/api/upload/files?filters[name][$contains]=${encodeURIComponent(filename)}`, { headers }));
+    if (files.length > 0) return files[0].id;
+  } catch {}
+  return null;
+}
+
+/** Push blog post to Strapi as draft */
+async function pushToStrapiDraft() {
+  const s = loadSettings();
+  if (!s.strapiToken) {
+    showAlert('Set your Strapi API token in Settings first', 'warn');
+    openSettings();
+    return;
+  }
+
+  const title = document.getElementById('z_title').value.trim();
+  const slug = document.getElementById('z_slug').value.trim();
+  const abstract = document.getElementById('z_abstract').value.trim();
+  const displayTime = document.getElementById('z_displayTime').value;
+
+  if (!title || !slug || !abstract || !displayTime) {
+    showAlert('Fill in all required fields (title, slug, abstract, display time)', 'warn');
+    return;
+  }
+
+  const btn = document.getElementById('pushStrapiBtn');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span> Pushing to Strapi...';
+
+  document.getElementById('strapiPublishLog').style.display = 'block';
+  const logEl = document.getElementById('strapiLog');
+  logEl.innerHTML = '';
+
+  try {
+    // Collect form data
+    const bodyContent = document.getElementById('zilliz-md').value;
+
+    // Selected tag IDs
+    const selectedTags = [];
+    document.querySelectorAll('.zilliz-tag-chip.selected').forEach(chip => {
+      selectedTags.push(Number(chip.dataset.tagId));
+    });
+
+    // Author ID lookup
+    const authorName = document.getElementById('z_author').value.trim();
+    let authorIds = [];
+    if (authorName && state.strapiAuthors) {
+      const match = state.strapiAuthors.find(a =>
+        a.name.toLowerCase() === authorName.toLowerCase());
+      if (match) {
+        authorIds.push(match.id);
+      } else {
+        // Author not found — warn before continuing
+        const proceed = confirm(`Author "${authorName}" not found in Strapi.\n\nThe blog will be created without an author.\nYou can assign the author later in Strapi admin.\n\nContinue?`);
+        if (!proceed) {
+          btn.disabled = false;
+          btn.innerHTML = 'Push to Strapi (Draft)';
+          return;
+        }
+        addLog(logEl, `Author "${authorName}" not found — will be empty`, 'info');
+      }
+    }
+
+    // Cover image media ID — use already-known IDs from upload, no extra API call
+    let coverId = null;
+    if (state.externalCoverStrapiId) {
+      coverId = state.externalCoverStrapiId;
+      addLog(logEl, `Cover image: ID ${coverId} (external upload)`, 'ok');
+    } else if (state.coverImage && state.images[state.coverImage]?.strapiMediaId) {
+      coverId = state.images[state.coverImage].strapiMediaId;
+      addLog(logEl, `Cover image: ID ${coverId} (article image)`, 'ok');
+    } else {
+      // Last resort: try to resolve by URL search
+      const coverUrl = document.getElementById('z_coverInfo')?.textContent || '';
+      if (coverUrl) {
+        addLog(logEl, 'Resolving cover image by URL...', 'info');
+        coverId = await resolveStrapiCoverId(coverUrl);
+        if (coverId) {
+          addLog(logEl, `Cover image found: ID ${coverId}`, 'ok');
+        } else {
+          addLog(logEl, 'Cover image not found in Strapi media — will be null', 'info');
+        }
+      }
+    }
+
+    // Build payload
+    const payload = {
+      title,
+      content: bodyContent,
+      abstract,
+      display_time: (() => { const d = new Date(displayTime); return isNaN(d) ? new Date().toISOString() : d.toISOString(); })(),
+      url: slug,
+      tags: selectedTags,
+      authors: authorIds,
+      image: coverId || null,
+      meta_title: document.getElementById('z_metaTitle').value.trim() || null,
+      meta_description: document.getElementById('z_metaDesc').value.trim() || document.getElementById('z_abstract').value.trim() || null,
+      meta_keywords: document.getElementById('z_metaKeywords').value.trim() || null,
+      locale: 'en',
+      featured: false,
+      canonical_rel: document.getElementById('z_canonicalUrl').value.trim() || `https://zilliz.com/blog/${slug}`,
+      invisible: document.getElementById('z_invisible').checked || null,
+      repost_to_medium: document.getElementById('z_repostMedium').checked || null,
+      repost_to_devto: document.getElementById('z_repostDevto').checked || null,
+      published_at: null, // Always draft
+    };
+
+    // Check for changes before re-push
+    const isUpdate = !!state.strapiEntryId;
+    if (isUpdate && state._lastPushedPayload) {
+      const currentPayload = JSON.stringify(payload);
+      if (currentPayload === state._lastPushedPayload) {
+        const proceed = confirm('没有检测到任何改动。确定要重新推送吗？\n(No changes detected. Push anyway?)');
+        if (!proceed) {
+          btn.disabled = false;
+          btn.innerHTML = `Update Strapi Draft (ID: ${state.strapiEntryId})`;
+          return;
+        }
+      }
+    }
+
+    // Determine method
+    const method = isUpdate ? 'PUT' : 'POST';
+    const endpoint = isUpdate ? `/blogs/${state.strapiEntryId}` : '/blogs';
+    addLog(logEl, isUpdate ? `Updating Strapi draft (ID: ${state.strapiEntryId})...` : 'Pushing to Strapi as draft...', 'info');
+
+    const headers = {
+      'Authorization': `Bearer ${s.strapiToken}`,
+      'Content-Type': 'application/json',
+    };
+
+    let res = await fetch(`${s.strapiUrl}${endpoint}`, {
+      method, headers,
+      body: JSON.stringify(payload),
+    });
+    // Fallback to /api/blogs for Strapi v4
+    if (res.status === 404 || res.status === 405) {
+      const v4Endpoint = isUpdate ? `/api/blogs/${state.strapiEntryId}` : '/api/blogs';
+      res = await fetch(`${s.strapiUrl}${v4Endpoint}`, {
+        method, headers,
+        body: JSON.stringify({ data: payload }),
+      });
+    }
+
+    if (!res.ok) {
+      const errBody = await res.text();
+      throw new Error(`HTTP ${res.status}: ${errBody}`);
+    }
+
+    const result = await res.json();
+    const entryId = result.id || result.data?.id;
+    state.strapiEntryId = entryId; // Track for re-push
+    addLog(logEl, isUpdate ? `Draft updated! Entry ID: ${entryId}` : `Draft created! Entry ID: ${entryId}`, 'ok');
+
+    // ── Ensure cover image is linked ──
+    // Strapi v3 sometimes ignores `image` in JSON body during creation.
+    // Verify and fix with a separate PUT if needed.
+    if (coverId && entryId) {
+      const entryData = result.data || result;
+      const hasImage = entryData.image && (entryData.image.id || entryData.image);
+      if (!hasImage) {
+        addLog(logEl, 'Image not set on creation — updating separately...', 'info');
+        try {
+          let imgRes = await fetch(`${s.strapiUrl}/blogs/${entryId}`, {
+            method: 'PUT', headers,
+            body: JSON.stringify({ image: coverId }),
+          });
+          if (imgRes.status === 404 || imgRes.status === 405) {
+            imgRes = await fetch(`${s.strapiUrl}/api/blogs/${entryId}`, {
+              method: 'PUT', headers,
+              body: JSON.stringify({ data: { image: coverId } }),
+            });
+          }
+          if (imgRes.ok) {
+            addLog(logEl, `Cover image linked: ID ${coverId}`, 'ok');
+          } else {
+            addLog(logEl, `Cover image update failed (HTTP ${imgRes.status}) — set it manually in Strapi admin`, 'info');
+          }
+        } catch (imgErr) {
+          addLog(logEl, `Cover image update error: ${imgErr.message}`, 'info');
+        }
+      }
+    }
+
+    // Save payload snapshot for change detection on re-push
+    state._lastPushedPayload = JSON.stringify(payload);
+
+    // Show success
+    document.getElementById('strapiPublishArea').style.display = 'none';
+    document.getElementById('strapiSuccessArea').style.display = 'block';
+    document.getElementById('strapiSuccessTitle').textContent = isUpdate ? 'Draft Updated!' : 'Draft Created!';
+    const adminUrl = `${s.strapiUrl}/admin/plugins/content-manager/collectionType/application::blogs.blogs/${entryId}`;
+    const link = document.getElementById('strapiEntryUrl');
+    link.href = adminUrl;
+    link.textContent = `Open in Strapi Admin (ID: ${entryId})`;
+
+  } catch (err) {
+    addLog(logEl, `Error: ${err.message}`, 'err');
+    btn.disabled = false;
+    btn.innerHTML = state.strapiEntryId ? 'Retry Update' : 'Retry Push to Strapi';
+    console.error(err);
+  }
+}
+
+/** Go back from success screen to the Strapi form for re-editing & re-push */
+function goBackToStrapiForm() {
+  document.getElementById('strapiSuccessArea').style.display = 'none';
+  document.getElementById('strapiPublishArea').style.display = 'block';
+  const pushBtn = document.getElementById('pushStrapiBtn');
+  pushBtn.disabled = false;
+  pushBtn.innerHTML = state.strapiEntryId ? `Update Strapi Draft (ID: ${state.strapiEntryId})` : 'Push to Strapi (Draft)';
+}
+
 function resetAll() {
+  const preserveTags = state.strapiTags;
+  const preserveAuthors = state.strapiAuthors;
   state = {
     finalMarkdown: '', filename: '', title: '', author: '', images: {},
-    coverImage: null, externalCoverUrl: null, imageMode: 'strapi',
+    coverImage: null, externalCoverUrl: null, externalCoverStrapiId: null, imageMode: 'strapi',
     mode: 'new', updateSubMode: 'quick', existingFilePath: '', existingFileSha: '', originalMarkdown: '',
+    strapiTags: preserveTags, strapiAuthors: preserveAuthors, strapiEntryId: null,
   };
   setImageMode('strapi', true); // reset mode UI without touching Continue button
   // Reset mode selector and update panel
-  setAppMode('new');
+  setAppMode('zilliz');
   resetUpdatePanel();
 
   document.getElementById('parsedSummary').style.display = 'none';
@@ -3344,6 +4060,13 @@ function resetAll() {
   document.getElementById('uploadImagesBtn').innerHTML = '↑ Upload All Images to Strapi';
   document.getElementById('uploadImagesBtn').style.display = '';
 
+  // Reset Strapi/Zilliz areas
+  document.getElementById('strapiPublishArea').style.display = 'none';
+  document.getElementById('strapiSuccessArea').style.display = 'none';
+  document.getElementById('strapiPublishLog').style.display = 'none';
+  const pushBtn = document.getElementById('pushStrapiBtn');
+  pushBtn.disabled = false; pushBtn.innerHTML = 'Push to Strapi (Draft)';
+
   ['f_prRepo','f_prBranch','f_prPath','f_prTitle'].forEach(id => {
     const el = document.getElementById(id);
     if (el) el.value = '';
@@ -3353,22 +4076,55 @@ function resetAll() {
   goTo(1);
 }
 
-// ─── Mode switching (New Post / Edit Existing) ────────────────────────────────
+// ─── Mode switching ────────────────────────────────────────────────────────────
+function toggleMilvusDropdown() {
+  document.getElementById('milvusDropdown').classList.toggle('open');
+}
+// Close dropdown when clicking outside
+document.addEventListener('click', (e) => {
+  const dd = document.getElementById('milvusDropdown');
+  if (dd && !e.target.closest('.milvus-dropdown-wrap')) dd.classList.remove('open');
+});
+
 function setAppMode(mode) {
   state.mode = mode;
-  document.querySelectorAll('.mode-selector-btn').forEach(btn =>
-    btn.classList.toggle('active', btn.dataset.appmode === mode));
+
+  // Close dropdown
+  const dd = document.getElementById('milvusDropdown');
+  if (dd) dd.classList.remove('open');
+
+  const isMilvus = (mode === 'new' || mode === 'update');
+
+  // Top-level highlight: Zilliz or Milvus
+  document.querySelectorAll('#modeSelector > .mode-selector-btn, #modeSelector .milvus-dropdown-wrap .mode-selector-btn').forEach(btn => {
+    const isActive = btn.dataset.appmode === 'zilliz' ? mode === 'zilliz' : isMilvus;
+    btn.classList.toggle('active', isActive);
+  });
+
+  // Update Milvus button label to show current sub-mode
+  const milvusBtn = document.getElementById('milvusBtn');
+  if (isMilvus) {
+    milvusBtn.textContent = mode === 'update' ? 'Milvus: Update ▾' : 'Milvus: New Post ▾';
+  } else {
+    milvusBtn.textContent = 'Publish to Milvus ▾';
+  }
+
+  // Hide GitHub image mode toggle in Zilliz mode (Step 2)
+  const modeToggle = document.querySelector('#panel-2 .mode-toggle');
+  if (modeToggle) modeToggle.style.display = mode === 'zilliz' ? 'none' : '';
+  const ghModeNote = document.getElementById('githubModeNote');
+  if (ghModeNote && mode === 'zilliz') ghModeNote.style.display = 'none';
 
   const wizard = document.getElementById('newPostWizard');
   const update = document.getElementById('updatePanel');
 
-  if (mode === 'new') {
+  if (mode === 'new' || mode === 'zilliz') {
     wizard.style.display = '';
     update.classList.remove('active');
+    if (mode === 'zilliz') fetchStrapiMetadata();
   } else {
     wizard.style.display = 'none';
     update.classList.add('active');
-    // Pre-fill repo/branch from settings
     const s = loadSettings();
     const repoEl = document.getElementById('u_repo');
     const branchEl = document.getElementById('u_branch');
@@ -4017,6 +4773,8 @@ function resetUpdatePanel() {
 window.addEventListener('load', () => {
   const s = loadSettings();
   if (!s.strapiToken || !s.ghToken) setTimeout(openSettings, 600);
+  // Default to Zilliz mode on load
+  setAppMode('zilliz');
 });
 </script>
 
