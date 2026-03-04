@@ -2849,7 +2849,8 @@ async function uploadAllImages() {
         body: formData,
       });
 
-      if (res.status === 404 || res.status === 405) {
+      // Fallback to v3 path if v4 path fails for any reason (not just 404/405)
+      if (!res.ok) {
         res = await fetch(`${s.strapiUrl}/upload`, {
           method: 'POST',
           headers: { 'Authorization': `Bearer ${s.strapiToken}` },
@@ -3062,7 +3063,8 @@ async function uploadCoverImage() {
     let res = await fetch(`${s.strapiUrl}/api/upload`, {
       method: 'POST', headers: { 'Authorization': `Bearer ${s.strapiToken}` }, body: formData,
     });
-    if (res.status === 404 || res.status === 405) {
+    // Fallback to v3 path if v4 path fails for any reason (not just 404/405)
+    if (!res.ok) {
       res = await fetch(`${s.strapiUrl}/upload`, {
         method: 'POST', headers: { 'Authorization': `Bearer ${s.strapiToken}` }, body: formData,
       });
@@ -3578,9 +3580,9 @@ async function fetchStrapiMetadata() {
   if (tagHint) tagHint.style.display = '';
 
   try {
-    // Fetch tags
-    let res = await fetch(`${s.strapiUrl}/tags`, { headers });
-    if (!res.ok) res = await fetch(`${s.strapiUrl}/api/tags`, { headers });
+    // Fetch tags — try Strapi v4 first, fall back to v3
+    let res = await fetch(`${s.strapiUrl}/api/tags?pagination[pageSize]=200`, { headers });
+    if (!res.ok) res = await fetch(`${s.strapiUrl}/tags`, { headers });
     if (res.ok) {
       const data = await res.json();
       state.strapiTags = (Array.isArray(data) ? data : data.data || [])
@@ -3592,9 +3594,9 @@ async function fetchStrapiMetadata() {
   } catch { state.strapiTags = []; }
 
   try {
-    // Fetch authors (paginated — get up to 200)
-    let res = await fetch(`${s.strapiUrl}/authors?_limit=200`, { headers });
-    if (!res.ok) res = await fetch(`${s.strapiUrl}/api/authors?pagination[pageSize]=200`, { headers });
+    // Fetch authors — try Strapi v4 first, fall back to v3
+    let res = await fetch(`${s.strapiUrl}/api/authors?pagination[pageSize]=200`, { headers });
+    if (!res.ok) res = await fetch(`${s.strapiUrl}/authors?_limit=200`, { headers });
     if (res.ok) {
       const data = await res.json();
       state.strapiAuthors = (Array.isArray(data) ? data : data.data || [])
@@ -3905,7 +3907,7 @@ async function pushToStrapiDraft() {
       invisible: document.getElementById('z_invisible').checked || null,
       repost_to_medium: document.getElementById('z_repostMedium').checked || null,
       repost_to_devto: document.getElementById('z_repostDevto').checked || null,
-      published_at: null, // Always draft
+      publishedAt: null, // Always draft — Strapi v4 uses camelCase
     };
 
     // Check for changes before re-push
@@ -3936,9 +3938,10 @@ async function pushToStrapiDraft() {
       method, headers,
       body: JSON.stringify(payload),
     });
-    // Fallback to /api/blogs for Strapi v4
-    if (res.status === 404 || res.status === 405) {
+    // Fallback to /api/blogs for Strapi v4 — trigger on any failure, not just 404/405
+    if (!res.ok) {
       const v4Endpoint = isUpdate ? `/api/blogs/${state.strapiEntryId}` : '/api/blogs';
+      addLog(logEl, `v3 endpoint failed (HTTP ${res.status}), trying Strapi v4 format...`, 'info');
       res = await fetch(`${s.strapiUrl}${v4Endpoint}`, {
         method, headers,
         body: JSON.stringify({ data: payload }),
@@ -3992,7 +3995,8 @@ async function pushToStrapiDraft() {
     document.getElementById('strapiPublishArea').style.display = 'none';
     document.getElementById('strapiSuccessArea').style.display = 'block';
     document.getElementById('strapiSuccessTitle').textContent = isUpdate ? 'Draft Updated!' : 'Draft Created!';
-    const adminUrl = `${s.strapiUrl}/admin/plugins/content-manager/collectionType/application::blogs.blogs/${entryId}`;
+    // Strapi v4 admin URL format (v3 used application::blogs.blogs, v4 uses api::blogs.blogs)
+    const adminUrl = `${s.strapiUrl}/admin/content-manager/collection-types/api::blogs.blogs/${entryId}`;
     const link = document.getElementById('strapiEntryUrl');
     link.href = adminUrl;
     link.textContent = `Open in Strapi Admin (ID: ${entryId})`;
@@ -4484,14 +4488,15 @@ async function uploadToStrapi(file) {
     headers: { 'Authorization': `Bearer ${s.strapiToken}` },
     body: formData,
   });
-  if (res.status === 404 || res.status === 405) {
+  // Fallback to v3 path if v4 path fails for any reason (not just 404/405)
+  if (!res.ok) {
     res = await fetch(`${s.strapiUrl}/upload`, {
       method: 'POST',
       headers: { 'Authorization': `Bearer ${s.strapiToken}` },
       body: formData,
     });
   }
-  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  if (!res.ok) throw new Error(`HTTP ${res.status}: ${(await res.text()).slice(0, 200)}`);
 
   const data = await res.json();
   const uploaded = Array.isArray(data) ? data[0] : data;
@@ -4508,7 +4513,8 @@ async function deleteFromStrapi(fileId) {
     method: 'DELETE',
     headers: { 'Authorization': `Bearer ${s.strapiToken}` },
   });
-  if (res.status === 404 || res.status === 405) {
+  // Fallback to v3 path if v4 path fails
+  if (!res.ok) {
     res = await fetch(`${s.strapiUrl}/upload/files/${fileId}`, {
       method: 'DELETE',
       headers: { 'Authorization': `Bearer ${s.strapiToken}` },
