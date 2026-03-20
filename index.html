@@ -962,20 +962,20 @@
     font-family: var(--sans);
   }
   .mode-selector-btn:hover { color: var(--text); }
-  .milvus-dropdown-wrap { position: relative; }
-  .milvus-dropdown {
+  .mode-dropdown-wrap { position: relative; }
+  .mode-dropdown {
     display: none; position: absolute; top: calc(100% + 6px); left: 50%; transform: translateX(-50%);
     background: var(--surface); border: 1px solid var(--border2); border-radius: 8px;
     padding: 4px; min-width: 160px; z-index: 50;
     box-shadow: 0 4px 16px rgba(0,0,0,0.3);
   }
-  .milvus-dropdown.open { display: block; }
-  .milvus-dropdown-item {
+  .mode-dropdown.open { display: block; }
+  .mode-dropdown-item {
     display: block; width: 100%; padding: 8px 16px; font-size: 13px;
     background: none; border: none; border-radius: 6px; color: var(--text2);
     cursor: pointer; text-align: left; font-family: var(--sans); transition: all .12s;
   }
-  .milvus-dropdown-item:hover { background: var(--surface2); color: var(--text); }
+  .mode-dropdown-item:hover { background: var(--surface2); color: var(--text); }
   .mode-selector-btn.active {
     background: var(--accent); color: #000; font-weight: 600;
     box-shadow: 0 1px 6px rgba(0, 212, 170, 0.25);
@@ -1083,13 +1083,261 @@
     border-color: var(--accent);
     background: rgba(0, 212, 170, 0.05);
   }
+
+  /* ── Batch Upload Panel (Solution / Integration) ─────────────── */
+  .batch-panel { display: none; animation: fadeIn 0.25s ease; }
+  .batch-panel.active { display: block; }
+
+  .batch-type-label {
+    font-size: 11px; font-weight: 600; color: var(--text3);
+    letter-spacing: 0.1em; text-transform: uppercase;
+    margin-bottom: 8px;
+  }
+
+  .batch-upload-zone {
+    border: 2px dashed var(--border2);
+    border-radius: var(--radius);
+    padding: 24px 32px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.2s;
+    background: var(--surface2);
+    margin-bottom: 16px;
+  }
+  .batch-upload-zone:hover, .batch-upload-zone.drag-over {
+    border-color: var(--accent);
+    background: rgba(0, 212, 170, 0.05);
+  }
+
+  .batch-file-list {
+    max-height: 400px;
+    overflow-y: auto;
+    margin-bottom: 16px;
+  }
+
+  .batch-file-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 14px;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    margin-bottom: 6px;
+    font-size: 13px;
+    transition: border-color 0.2s;
+  }
+  .batch-file-item.success { border-color: var(--success); }
+  .batch-file-item.error { border-color: var(--error); }
+  .batch-file-item.processing { border-color: var(--warn); }
+  .batch-file-item.skipped { border-color: var(--text3); opacity: 0.6; }
+
+  .batch-file-name {
+    flex: 1;
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--text);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .batch-file-slug {
+    font-size: 11px;
+    color: var(--text3);
+    font-family: var(--mono);
+    max-width: 200px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .batch-file-status {
+    font-size: 11px;
+    font-weight: 500;
+    color: var(--text3);
+    white-space: nowrap;
+  }
+  .batch-file-item.success .batch-file-status { color: var(--success); }
+  .batch-file-item.error .batch-file-status { color: var(--error); }
+  .batch-file-item.processing .batch-file-status { color: var(--warn); }
+
+  .batch-file-remove {
+    background: none; border: none; color: var(--text3);
+    cursor: pointer; font-size: 14px; padding: 2px 6px;
+    border-radius: 4px; transition: all 0.15s;
+  }
+  .batch-file-remove:hover { color: var(--error); background: rgba(255,95,87,0.1); }
+
+  /* Inline review/confirmation panel */
+  .batch-review-panel {
+    background: var(--surface);
+    border: 1px solid var(--border2);
+    border-radius: var(--radius);
+    padding: 20px;
+    margin-bottom: 16px;
+  }
+  .batch-review-header {
+    font-size: 16px; font-weight: 600; color: var(--text);
+    margin-bottom: 16px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid var(--border);
+  }
+  .batch-review-section { margin-bottom: 14px; padding: 12px; border-radius: 8px; }
+  .batch-review-safe {
+    background: rgba(0,212,170,0.06);
+    border: 1px solid rgba(0,212,170,0.25);
+  }
+  .batch-review-update {
+    background: rgba(255,179,64,0.06);
+    border: 1px solid rgba(255,179,64,0.25);
+  }
+  .batch-review-danger {
+    background: rgba(255,95,87,0.1);
+    border: 2px solid var(--error);
+  }
+  .batch-review-label {
+    font-size: 12px; font-weight: 600; text-transform: uppercase;
+    letter-spacing: 0.5px; margin-bottom: 8px;
+  }
+  .batch-review-safe .batch-review-label { color: var(--accent); }
+  .batch-review-update .batch-review-label { color: var(--warn); }
+  .batch-review-danger .batch-review-label { color: var(--error); }
+  .batch-review-entry {
+    font-family: var(--mono); font-size: 13px; color: var(--text);
+    padding: 4px 0;
+  }
+  .batch-review-danger-entry {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 8px 0; border-bottom: 1px solid rgba(255,95,87,0.15);
+  }
+  .batch-review-danger-entry:last-child { border-bottom: none; }
+  .batch-review-toggle {
+    font-family: var(--sans); font-size: 12px; color: var(--error);
+    font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 6px;
+  }
+  .batch-review-toggle input { accent-color: var(--error); }
+  .batch-review-actions {
+    display: flex; gap: 10px; justify-content: flex-end;
+    margin-top: 16px; padding-top: 14px;
+    border-top: 1px solid var(--border);
+  }
+
+  .batch-parse-summary {
+    border: 2px solid var(--accent);
+    border-radius: var(--radius);
+    padding: 14px 18px;
+    margin-bottom: 16px;
+    background: rgba(0,212,170,0.05);
+  }
+  .batch-parse-summary .summary-header {
+    font-weight: 600;
+    font-size: 14px;
+    color: var(--accent);
+    margin-bottom: 8px;
+  }
+  .batch-parse-entry {
+    display: flex;
+    gap: 12px;
+    padding: 6px 0;
+    border-bottom: 1px solid var(--border);
+    font-size: 13px;
+    align-items: baseline;
+  }
+  .batch-parse-entry:last-child { border-bottom: none; }
+  .batch-parse-entry .entry-idx {
+    color: var(--text3);
+    min-width: 24px;
+  }
+  .batch-parse-entry .entry-slug {
+    font-family: var(--mono);
+    color: var(--warn);
+    font-weight: 600;
+    min-width: 180px;
+  }
+  .batch-parse-entry .entry-title {
+    color: var(--text);
+    flex: 1;
+  }
+  .batch-parse-entry.entry-error .entry-slug {
+    color: var(--error);
+  }
+
+  .logo-upload-zone {
+    border: 2px dashed var(--border2);
+    border-radius: var(--radius);
+    padding: 20px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.2s;
+    background: var(--surface2);
+    margin-bottom: 12px;
+  }
+  .logo-upload-zone:hover, .logo-upload-zone.drag-over {
+    border-color: var(--accent);
+    background: rgba(0, 212, 170, 0.05);
+  }
+
+  .logo-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+    gap: 8px;
+    margin-bottom: 16px;
+  }
+  .logo-item {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 8px;
+    text-align: center;
+    position: relative;
+  }
+  .logo-item.uploaded { border-color: var(--success); }
+  .logo-item img {
+    max-width: 80px; max-height: 50px;
+    display: block; margin: 0 auto 4px;
+    object-fit: contain;
+    background: #fff;
+    border-radius: 4px;
+    padding: 4px;
+  }
+  .logo-item-name {
+    font-size: 9px; color: var(--text3);
+    font-family: var(--mono);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .logo-item-status {
+    font-size: 9px; color: var(--text3);
+    margin-top: 2px;
+  }
+  .logo-item.uploaded .logo-item-status { color: var(--success); }
+
+  .batch-summary {
+    display: flex; gap: 12px; flex-wrap: wrap;
+    margin-bottom: 16px;
+  }
+  .batch-summary-stat {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 10px 14px;
+    flex: 1; min-width: 100px;
+  }
+  .batch-summary-stat .label {
+    font-size: 10px; font-weight: 600; color: var(--text3);
+    letter-spacing: 0.08em; text-transform: uppercase;
+  }
+  .batch-summary-stat .value {
+    font-family: var(--mono); font-size: 18px; color: var(--text);
+    font-weight: 600;
+  }
 </style>
 </head>
 <body>
 
 <header class="hero">
-  <h1 class="hero-title">Blog <span>Publisher</span></h1>
-  <p class="hero-desc">Convert Google Docs or Feishu exports to Markdown, upload images to Strapi or GitHub, and open a pull request — all from your browser.</p>
+  <h1 class="hero-title">Content <span>Publisher</span></h1>
+  <p class="hero-desc">Publish blogs, solution pages, and integration pages to Strapi — or submit Milvus blog PRs via GitHub. Supports batch upload with auto-dedup.</p>
   <div class="hero-actions">
     <button class="settings-btn" onclick="openSettings()">⚙ Settings</button>
     <a href="https://github.com/septemberfd/blog-publisher" target="_blank" rel="noopener" class="credit-link">
@@ -1155,14 +1403,21 @@
 
 <main class="main">
 
-  <!-- Mode selector: Zilliz / Milvus (with dropdown) -->
+  <!-- Mode selector: zilliz.com (Solution/Integration) / Blog / Milvus -->
   <div class="mode-selector" id="modeSelector">
-    <button class="mode-selector-btn active" data-appmode="zilliz" onclick="setAppMode('zilliz')">Publish to Zilliz</button>
-    <div class="milvus-dropdown-wrap">
-      <button class="mode-selector-btn" data-appmode="milvus" onclick="toggleMilvusDropdown()" id="milvusBtn">Publish to Milvus ▾</button>
-      <div class="milvus-dropdown" id="milvusDropdown">
-        <button class="milvus-dropdown-item" onclick="setAppMode('new')">New Post</button>
-        <button class="milvus-dropdown-item" onclick="setAppMode('update')">Update Existing</button>
+    <div class="mode-dropdown-wrap">
+      <button class="mode-selector-btn" data-appmode="zilliz-site" onclick="toggleZillizDropdown()" id="zillizSiteBtn">zilliz.com ▾</button>
+      <div class="mode-dropdown" id="zillizDropdown">
+        <button class="mode-dropdown-item" onclick="setAppMode('zilliz')">Blog</button>
+        <button class="mode-dropdown-item" onclick="setAppMode('solution')">Solution</button>
+        <button class="mode-dropdown-item" onclick="setAppMode('integration')">Integration</button>
+      </div>
+    </div>
+    <div class="mode-dropdown-wrap">
+      <button class="mode-selector-btn" data-appmode="milvus" onclick="toggleMilvusDropdown()" id="milvusBtn">milvus.io ▾</button>
+      <div class="mode-dropdown" id="milvusDropdown">
+        <button class="mode-dropdown-item" onclick="setAppMode('new')">New Post</button>
+        <button class="mode-dropdown-item" onclick="setAppMode('update')">Update Existing</button>
       </div>
     </div>
   </div>
@@ -1274,6 +1529,110 @@
         <span>The file at <strong id="fullReplacePathLabel">—</strong> will be overwritten. Use the wizard below to upload your new version, then create a PR.</span>
       </div>
     </div>
+  </div>
+
+  <!-- ════════════════════════════════════════════════════════════════════ -->
+  <!-- BATCH UPLOAD PANEL (Solution / Integration) -->
+  <!-- ════════════════════════════════════════════════════════════════════ -->
+  <div class="batch-panel" id="batchPanel">
+
+    <div class="card">
+      <div class="card-title" id="batchPanelTitle">Upload Solution Pages</div>
+      <p class="section-subtitle" id="batchPanelDesc">
+        Upload one or more <strong style="color:var(--text)">.md</strong> or <strong style="color:var(--text)">.docx</strong> files.
+        Each file represents one page. Existing pages (matched by URL slug) will be updated; new pages will be created as draft.
+      </p>
+
+      <div class="batch-upload-zone" id="batchUploadZone"
+           onclick="document.getElementById('batchFileInput').click()"
+           ondragover="event.preventDefault(); this.classList.add('drag-over')"
+           ondragleave="this.classList.remove('drag-over')"
+           ondrop="onBatchDrop(event)">
+        <div style="font-size:28px; margin-bottom:8px;">📁</div>
+        <div style="font-size:15px; font-weight:500; color:var(--text);">Drop files here or click to browse</div>
+        <div style="font-size:13px; color:var(--text2); margin-top:4px;">Select multiple .md or .docx files</div>
+      </div>
+      <input type="file" id="batchFileInput" accept=".md,.docx,.markdown" multiple style="display:none"
+             onchange="onBatchFilesSelected(event)">
+
+      <div id="batchParseSummary" style="display:none;"></div>
+
+      <div id="batchFileListArea" style="display:none;">
+        <div class="batch-summary" id="batchSummary">
+          <div class="batch-summary-stat"><div class="label">Files</div><div class="value" id="batchCountFiles">0</div></div>
+          <div class="batch-summary-stat"><div class="label">New</div><div class="value" id="batchCountNew">0</div></div>
+          <div class="batch-summary-stat"><div class="label">Update</div><div class="value" id="batchCountUpdate">0</div></div>
+          <div class="batch-summary-stat"><div class="label">Done</div><div class="value" id="batchCountDone">0</div></div>
+        </div>
+        <div class="batch-file-list" id="batchFileList"></div>
+        <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
+          <button class="btn btn-ghost" onclick="clearBatchFiles()">Clear All</button>
+          <button class="btn btn-secondary" onclick="document.getElementById('batchFileInput').click()">+ Add More Files</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Logo upload section -->
+    <div class="card" id="batchLogoCard">
+      <div class="card-title">Logo Images (Optional)</div>
+      <p class="section-subtitle">
+        Upload logo images referenced in your files (e.g. <code>product_logo: company.png</code>).
+        Logos are auto-deduplicated — same file is uploaded only once across all pages.
+      </p>
+
+      <div class="logo-upload-zone" id="logoUploadZone"
+           onclick="document.getElementById('logoFileInput').click()"
+           ondragover="event.preventDefault(); this.classList.add('drag-over')"
+           ondragleave="this.classList.remove('drag-over')"
+           ondrop="onLogoDrop(event)">
+        <div style="font-size:20px; margin-bottom:4px;">🖼</div>
+        <div style="font-size:13px; color:var(--text3);">Drop logo images or click to browse</div>
+      </div>
+      <input type="file" id="logoFileInput" accept="image/*" multiple style="display:none"
+             onchange="onLogoFilesSelected(event)">
+
+      <div class="logo-grid" id="logoGrid"></div>
+      <div id="logoUploadControls" style="display:none;">
+        <div style="display:flex; gap:10px; align-items:center;">
+          <button class="btn btn-secondary" onclick="uploadAllLogos()" id="uploadLogosBtn">Upload All Logos to Strapi</button>
+          <span id="logoUploadStatus" style="font-size:12px; color:var(--text3);"></span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Push to Strapi -->
+    <div class="card">
+      <div style="display:flex; gap:12px; flex-wrap:wrap; align-items:center;">
+        <button class="btn btn-primary btn-lg" onclick="pushBatchToStrapi()" id="pushBatchBtn" disabled>
+          Push All to Strapi
+        </button>
+        <span id="batchPushStatus" style="font-size:12px; color:var(--text3);"></span>
+      </div>
+      <p style="font-size: 12px; color: var(--warn); margin-top: 12px;">
+        New pages → Draft. Updated pages → content updated, publish state unchanged.
+      </p>
+    </div>
+
+    <!-- Review panel (inline confirmation, no popups) -->
+    <div id="batchReviewArea" style="display:none;"></div>
+
+    <!-- Log -->
+    <div id="batchLogCard" style="display:none;" class="card">
+      <div class="card-title">Processing Log</div>
+      <div class="log" id="batchLog" style="max-height:400px;"></div>
+    </div>
+
+    <!-- Success -->
+    <div id="batchSuccessArea" style="display:none;">
+      <div class="card success-screen">
+        <div class="success-icon">🎉</div>
+        <div class="success-title" id="batchSuccessTitle">All Done!</div>
+        <div class="success-sub" id="batchSuccessSub">Pages have been pushed to Strapi.</div>
+        <div id="batchSuccessLinks" style="margin: 16px auto; max-width:600px; text-align:left;"></div>
+        <button class="btn btn-secondary" onclick="resetBatchPanel()">Upload More</button>
+      </div>
+    </div>
+
   </div>
 
   <!-- ════════════════════════════════════════════════════════════════════ -->
@@ -4071,6 +4430,10 @@ function resetAll() {
   const pushBtn = document.getElementById('pushStrapiBtn');
   pushBtn.disabled = false; pushBtn.innerHTML = 'Push to Strapi (Draft)';
 
+  // Reset batch panel
+  document.getElementById('batchPanel').classList.remove('active');
+  resetBatchPanel();
+
   ['f_prRepo','f_prBranch','f_prPath','f_prTitle'].forEach(id => {
     const el = document.getElementById(id);
     if (el) el.value = '';
@@ -4081,36 +4444,53 @@ function resetAll() {
 }
 
 // ─── Mode switching ────────────────────────────────────────────────────────────
+function toggleZillizDropdown() {
+  document.getElementById('zillizDropdown').classList.toggle('open');
+  document.getElementById('milvusDropdown').classList.remove('open');
+}
 function toggleMilvusDropdown() {
   document.getElementById('milvusDropdown').classList.toggle('open');
+  document.getElementById('zillizDropdown').classList.remove('open');
 }
-// Close dropdown when clicking outside
+// Close dropdowns when clicking outside
 document.addEventListener('click', (e) => {
-  const dd = document.getElementById('milvusDropdown');
-  if (dd && !e.target.closest('.milvus-dropdown-wrap')) dd.classList.remove('open');
+  if (!e.target.closest('.mode-dropdown-wrap')) {
+    document.querySelectorAll('.mode-dropdown').forEach(dd => dd.classList.remove('open'));
+  }
 });
 
 function setAppMode(mode) {
   state.mode = mode;
 
-  // Close dropdown
-  const dd = document.getElementById('milvusDropdown');
-  if (dd) dd.classList.remove('open');
+  // Close all dropdowns
+  document.querySelectorAll('.mode-dropdown').forEach(dd => dd.classList.remove('open'));
 
   const isMilvus = (mode === 'new' || mode === 'update');
+  const isZillizSite = (mode === 'zilliz' || mode === 'solution' || mode === 'integration');
+  const isBatch = (mode === 'solution' || mode === 'integration');
 
-  // Top-level highlight: Zilliz or Milvus
-  document.querySelectorAll('#modeSelector > .mode-selector-btn, #modeSelector .milvus-dropdown-wrap .mode-selector-btn').forEach(btn => {
-    const isActive = btn.dataset.appmode === 'zilliz' ? mode === 'zilliz' : isMilvus;
+  // Top-level highlight
+  document.querySelectorAll('#modeSelector .mode-selector-btn').forEach(btn => {
+    const appmode = btn.dataset.appmode;
+    let isActive = false;
+    if (appmode === 'zilliz-site') isActive = isZillizSite;
+    else if (appmode === 'milvus') isActive = isMilvus;
     btn.classList.toggle('active', isActive);
   });
 
-  // Update Milvus button label to show current sub-mode
+  // Update button labels to show current sub-mode
+  const zillizBtn = document.getElementById('zillizSiteBtn');
+  if (isZillizSite) {
+    const label = mode === 'solution' ? 'Solution' : mode === 'integration' ? 'Integration' : 'Blog';
+    zillizBtn.textContent = `zilliz.com: ${label} ▾`;
+  } else {
+    zillizBtn.textContent = 'zilliz.com ▾';
+  }
   const milvusBtn = document.getElementById('milvusBtn');
   if (isMilvus) {
-    milvusBtn.textContent = mode === 'update' ? 'Milvus: Update ▾' : 'Milvus: New Post ▾';
+    milvusBtn.textContent = mode === 'update' ? 'milvus.io: Update ▾' : 'milvus.io: New Post ▾';
   } else {
-    milvusBtn.textContent = 'Publish to Milvus ▾';
+    milvusBtn.textContent = 'milvus.io ▾';
   }
 
   // Hide GitHub image mode toggle in Zilliz mode (Step 2)
@@ -4121,14 +4501,41 @@ function setAppMode(mode) {
 
   const wizard = document.getElementById('newPostWizard');
   const update = document.getElementById('updatePanel');
+  const batchPanel = document.getElementById('batchPanel');
 
-  if (mode === 'new' || mode === 'zilliz') {
+  if (isBatch) {
+    // Solution / Integration batch mode
+    wizard.style.display = 'none';
+    update.classList.remove('active');
+    batchPanel.classList.add('active');
+
+    // Update batch panel labels
+    batchState.contentType = mode;
+    const typeName = mode === 'solution' ? 'Solution' : 'Integration';
+    document.getElementById('batchPanelTitle').textContent = `Upload ${typeName} Pages`;
+    document.getElementById('batchPanelDesc').innerHTML =
+      `Upload one or more <strong style="color:var(--text)">.md</strong> or <strong style="color:var(--text)">.docx</strong> files. ` +
+      `Each file represents one ${typeName.toLowerCase()} page. ` +
+      `Existing pages (matched by URL slug) will be updated; new pages will be created as draft.`;
+
+    // Clear files if switching content type (they'd be parsed wrong)
+    if (batchState.files.length > 0 && batchState.files[0].parsed) {
+      const wasSolution = !!batchState.files[0].parsed.individual_url;
+      const nowSolution = mode === 'solution';
+      if (wasSolution !== nowSolution) {
+        clearBatchFiles();
+      }
+    }
+  } else if (mode === 'new' || mode === 'zilliz') {
     wizard.style.display = '';
     update.classList.remove('active');
+    batchPanel.classList.remove('active');
     if (mode === 'zilliz') fetchStrapiMetadata();
   } else {
+    // update (milvus)
     wizard.style.display = 'none';
     update.classList.add('active');
+    batchPanel.classList.remove('active');
     const s = loadSettings();
     const repoEl = document.getElementById('u_repo');
     const branchEl = document.getElementById('u_branch');
@@ -4782,6 +5189,1012 @@ window.addEventListener('load', () => {
   // Default to Zilliz mode on load
   setAppMode('zilliz');
 });
+
+// ════════════════════════════════════════════════════════════════════════════════
+// SOLUTION & INTEGRATION — BATCH UPLOAD
+// ════════════════════════════════════════════════════════════════════════════════
+
+// ─── Batch State ──────────────────────────────────────────────────────────────
+let batchState = {
+  contentType: 'solution', // 'solution' | 'integration'
+  files: [],               // [{name, raw, parsed, status, strapiId, error, isUpdate, existingId}]
+  logos: {},               // {filename: {blob, localUrl, strapiUrl, strapiMediaId, hash}}
+  integrationTags: null,   // fetched from Strapi
+};
+
+const LOGO_CACHE_KEY = 'strapiLogoCache';
+function loadLogoCache() {
+  try { return JSON.parse(localStorage.getItem(LOGO_CACHE_KEY) || '{}'); } catch { return {}; }
+}
+function saveLogoCache(cache) {
+  try { localStorage.setItem(LOGO_CACHE_KEY, JSON.stringify(cache)); } catch {}
+}
+
+// ─── Generic Structured MD Parser ──────────────────────────────────────────────
+// Parses formats like:
+//   ## Section Name
+//   key: value
+//   ### array_name
+//   1. key: val | key: val
+//      key: val
+//   #### Sub Section Title (for multi-line content blocks)
+
+function parseStructuredMd(text) {
+  const fields = {};
+  const arrays = {};
+
+  // Normalize line endings
+  const raw = text.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+
+  // Split on ## headers (keep content before first ## too)
+  const sectionSplits = raw.split(/^## /m);
+
+  for (let si = 0; si < sectionSplits.length; si++) {
+    const sectionBlock = sectionSplits[si];
+    const sectionLines = sectionBlock.split('\n');
+    const sectionHeader = si > 0 ? sectionLines[0].trim() : '';
+
+    // Check if ## header contains an array name in parentheses, e.g. "## Key Advantages (key_advantages)"
+    const headerArrayMatch = sectionHeader.match(/\(([a-z_][a-z0-9_]*)\)\s*$/i);
+    const headerArrayName = headerArrayMatch ? headerArrayMatch[1] : null;
+
+    // Check for ### sub-sections
+    const subSections = sectionBlock.split(/^### /m);
+
+    // Parse fields from the main section (before any ###)
+    const mainPart = subSections[0];
+    const mainLines = mainPart.split('\n');
+
+    // Collect key-value fields and numbered items from the main part
+    const sectionItems = [];
+    let currentSectionItem = null;
+    let lastSectionKey = null;
+
+    // Skip the section header (first line)
+    for (let i = (si === 0 ? 0 : 1); i < mainLines.length; i++) {
+      const line = mainLines[i];
+
+      // Check for numbered items at ## level (for "## Section (array_name)" pattern)
+      if (headerArrayName) {
+        const itemMatch = line.match(/^\d+\.\s+(.+)$/);
+        if (itemMatch) {
+          if (currentSectionItem) sectionItems.push(currentSectionItem);
+          currentSectionItem = {};
+          lastSectionKey = null;
+          const firstLine = itemMatch[1].replace(/\*\*/g, '');
+          const pipeParts = firstLine.split(/\s*\|\s*/);
+          for (const part of pipeParts) {
+            const kv = part.match(/^([a-z_][a-z0-9_]*)\s*:\s*(.*)$/i);
+            if (kv) {
+              currentSectionItem[kv[1].trim()] = kv[2].trim().replace(/^`+|`+$/g, '');
+              lastSectionKey = kv[1].trim();
+            }
+          }
+          continue;
+        }
+        // Continuation line for numbered item
+        if (currentSectionItem && /^\s{2,}/.test(line)) {
+          const trimmed = line.trim().replace(/\*\*/g, '');
+          if (!trimmed) continue;
+          const kvM = trimmed.match(/^([a-z_][a-z0-9_]*)\s*:\s*(.*)$/i);
+          if (kvM) {
+            currentSectionItem[kvM[1].trim()] = kvM[2].trim().replace(/^`+|`+$/g, '');
+            lastSectionKey = kvM[1].trim();
+          } else if (lastSectionKey) {
+            currentSectionItem[lastSectionKey] += ' ' + trimmed;
+          }
+          continue;
+        }
+      }
+
+      // Support "key: value", "- key: value", "- key: `value`", "- **key:** value"
+      // Strip leading "- ", "*", and bold markers "**" around key
+      const cleanLine = line.replace(/^\s*[-*]\s*/, '').replace(/\*\*/g, '');
+      const kvMatch = cleanLine.match(/^([a-z_][a-z0-9_]*)\s*:\s*(.*)$/i);
+      if (kvMatch) {
+        const key = kvMatch[1].trim();
+        let value = kvMatch[2].trim().replace(/^`+|`+$/g, ''); // strip backticks
+        fields[key] = value;
+      }
+    }
+
+    // Save any collected items for ## (array_name) pattern
+    if (headerArrayName) {
+      if (currentSectionItem) sectionItems.push(currentSectionItem);
+      if (sectionItems.length > 0) {
+        arrays[headerArrayName] = (arrays[headerArrayName] || []).concat(sectionItems);
+      }
+    }
+
+    // Parse ### sub-sections as arrays
+    for (let ssi = 1; ssi < subSections.length; ssi++) {
+      const subBlock = subSections[ssi];
+      const subLines = subBlock.split('\n');
+      const arrayName = subLines[0].trim();
+
+      // Check if this sub-section uses #### headers (for integration contents)
+      if (subBlock.includes('\n#### ')) {
+        const items = [];
+        const h4Splits = subBlock.split(/^#### /m).slice(1);
+        for (const h4Block of h4Splits) {
+          const h4Lines = h4Block.split('\n');
+          const sectionTitle = h4Lines[0].trim();
+          const sectionContent = h4Lines.slice(1).join('\n').trim();
+          items.push({ section_tile: sectionTitle, section_contents: sectionContent });
+        }
+        arrays[arrayName] = items;
+        continue;
+      }
+
+      // Parse numbered list items
+      const items = [];
+      let currentItem = null;
+      let lastKey = null;
+
+      for (let i = 1; i < subLines.length; i++) {
+        const line = subLines[i];
+
+        // New numbered item: "1. key: val | key: val" or "1. key: val"
+        const itemMatch = line.match(/^\d+\.\s+(.+)$/);
+        if (itemMatch) {
+          if (currentItem) items.push(currentItem);
+          currentItem = {};
+          lastKey = null;
+
+          // Parse the first line — may have pipe-separated key:value pairs
+          const firstLine = itemMatch[1].replace(/\*\*/g, ''); // strip bold markers
+          const pipeParts = firstLine.split(/\s*\|\s*/);
+          for (const part of pipeParts) {
+            const kv = part.match(/^([a-z_][a-z0-9_]*)\s*:\s*(.*)$/i);
+            if (kv) {
+              currentItem[kv[1].trim()] = kv[2].trim().replace(/^`+|`+$/g, '');
+              lastKey = kv[1].trim();
+            }
+          }
+          continue;
+        }
+
+        // Continuation line (indented): "   key: value", "   **key:** value"
+        if (currentItem && /^\s{2,}/.test(line)) {
+          const trimmed = line.trim().replace(/\*\*/g, ''); // strip bold markers
+          if (!trimmed) continue;
+          const kvMatch = trimmed.match(/^([a-z_][a-z0-9_]*)\s*:\s*(.*)$/i);
+          if (kvMatch) {
+            currentItem[kvMatch[1].trim()] = kvMatch[2].trim().replace(/^`+|`+$/g, '');
+            lastKey = kvMatch[1].trim();
+          } else if (lastKey) {
+            // Continuation of the previous key's value
+            currentItem[lastKey] += ' ' + trimmed;
+          }
+        }
+      }
+      if (currentItem) items.push(currentItem);
+      arrays[arrayName] = items;
+    }
+  }
+
+  return { fields, arrays };
+}
+
+// ─── Solution MD Parser ────────────────────────────────────────────────────────
+function parseSolutionMd(text) {
+  const { fields, arrays } = parseStructuredMd(text);
+
+  // Find quotations/testimonials from any of the possible array names
+  const rawQuotes = arrays.Quotations || arrays.quotations || arrays.testimonial_quotes || [];
+  const quotations = rawQuotes.map(item => ({
+    quote: item.quote || '',
+    author: item.author || item.name || '',
+    company: item.company || '',
+    role: item.role || item.title || '',
+  }));
+
+  return {
+    individual_url: fields.individual_url || fields.url || '',
+    meta_title: fields.meta_title || fields.page_title || '',
+    meta_description: fields.meta_description || '',
+    meta_keywords: fields.meta_keywords || '',
+    banner_title: fields.banner_title || '',
+    banner_desc: fields.banner_desc || '',
+    ai_app_title: fields.ai_app_title || '',
+    ai_app_desc: fields.ai_app_desc || '',
+    ai_app_contents: (arrays.ai_app_contents || []).map(item => ({
+      tag: item.tag || '', title: item.title || '', content: item.content || '',
+    })),
+    advantage_title: fields.advantage_title || '',
+    advantage_desc: fields.advantage_desc || '',
+    key_advantages: (arrays.key_advantages || []).map(item => ({
+      key: item.key || '', tag: item.tag || '', title: item.title || '', content: item.content || '',
+    })),
+    advantage_contents: (arrays.advantage_contents || []).map(item => ({
+      title: item.title || '', content: item.content || '',
+    })),
+    resource_title: fields.resource_title || '',
+    resource_desc: fields.resource_desc || '',
+    resource_contents: (arrays.resource_contents || []).map(item => {
+      // Auto-detect category from URL if not provided
+      let cat = item.category || '';
+      if (!cat && (item.cta_link || item.url || '')) {
+        const link = item.cta_link || item.url || '';
+        if (link.includes('/blog/')) cat = 'blog';
+        else if (link.includes('/docs/') || link.includes('/doc/')) cat = 'docs';
+        else if (link.includes('/tutorial')) cat = 'tutorial';
+        else cat = 'blog';
+      }
+      return {
+        category: (cat || 'blog').toLowerCase().replace(/\s+/g, '_'),
+        title: item.title || '',
+        content: item.content || item.desc || '',
+        cta_link: item.cta_link || item.url || item.cta || '',
+      };
+    }),
+    cta_title: fields.cta_title || '',
+    cta_desc: fields.cta_desc || '',
+    related_industries: (arrays['related_industries'] || arrays['Customer Logos (related_industries)'] || []).map(item => ({
+      industry_name: item.industry_name || '',
+      related_link: item.related_link || null,
+      industry_logo: item.industry_logo || null,
+    })),
+    quotations,
+    locale: 'en',
+    publishedAt: null,
+  };
+}
+
+// ─── Integration MD Parser ─────────────────────────────────────────────────────
+function parseIntegrationMd(text) {
+  const { fields, arrays } = parseStructuredMd(text);
+
+  // Parse integration_tags from comma-separated string to array of names
+  const tagStr = fields.integration_tags || '';
+  const tagNames = tagStr ? tagStr.split(',').map(t => t.trim()).filter(Boolean) : [];
+
+  return {
+    detail_page_url: fields.detail_page_url || fields.url || '',
+    meta_title: fields.meta_title || '',
+    meta_description: fields.meta_description || '',
+    meta_keywords: fields.meta_keywords || '',
+    product_name: fields.product_name || '',
+    product_desc: fields.product_desc || '',
+    product_logo: fields.product_logo || null, // filename reference
+    title: fields.title || '',
+    description: fields.description || '',
+    use_cta_label: fields.use_cta_label || null,
+    use_cta_link: fields.use_cta_link || '',
+    hubspot_form_id: fields.hubspot_form_id || null,
+    hubspot_portal_id: fields.hubspot_portal_id || null,
+    hubspot_region: fields.hubspot_region || null,
+    form_page_title: fields.form_page_title || null,
+    form_page_desc: fields.form_page_desc || null,
+    order: fields.order || null,
+    integration_tag_names: tagNames, // resolved to IDs later
+    contents: (arrays.contents || []).map(item => ({
+      section_tile: item.section_tile || item.section_title || '',
+      section_contents: item.section_contents || '',
+    })),
+    related_resources: (arrays.related_resources || []).map(item => ({
+      tag_name: item.tag_name || '',
+      title: item.title || '',
+      link_href: item.link_href || '',
+      resource_link_label: item.resource_link_label || '',
+      resource_desc: item.resource_desc || '',
+      order: item.order ? Number(item.order) : null,
+    })),
+    locale: 'en',
+    publishedAt: null,
+  };
+}
+
+// ─── DOCX to Structured Text ──────────────────────────────────────────────────
+async function docxToStructuredText(file) {
+  if (typeof mammoth === 'undefined') throw new Error('mammoth.js not loaded');
+  const arrayBuffer = await file.arrayBuffer();
+  const result = await mammoth.convertToHtml({ arrayBuffer });
+  // Convert HTML to markdown using existing pipeline, then return text
+  const md = convertGoogleDocToMarkdown(result.value);
+  return md;
+}
+
+// ─── Batch File Handling ──────────────────────────────────────────────────────
+
+function onBatchDrop(e) {
+  e.preventDefault();
+  document.getElementById('batchUploadZone').classList.remove('drag-over');
+  addBatchFiles(Array.from(e.dataTransfer.files));
+}
+
+function onBatchFilesSelected(e) {
+  addBatchFiles(Array.from(e.target.files));
+  e.target.value = '';
+}
+
+async function addBatchFiles(files) {
+  const validFiles = files.filter(f => {
+    const name = f.name.toLowerCase();
+    return name.endsWith('.md') || name.endsWith('.markdown') || name.endsWith('.docx');
+  });
+
+  if (validFiles.length === 0) {
+    showAlert('No valid .md or .docx files found', 'warn');
+    return;
+  }
+
+  for (const file of validFiles) {
+    // Check for duplicate filename
+    if (batchState.files.some(f => f.name === file.name)) continue;
+
+    let raw = '';
+    try {
+      if (file.name.toLowerCase().endsWith('.docx')) {
+        raw = await docxToStructuredText(file);
+      } else {
+        raw = await file.text();
+      }
+    } catch (err) {
+      batchState.files.push({
+        name: file.name, raw: '', parsed: null,
+        status: 'error', error: 'Failed to read: ' + err.message,
+        strapiId: null, isUpdate: false, existingId: null,
+      });
+      continue;
+    }
+
+    // Parse based on content type
+    let parsed = null;
+    try {
+      parsed = batchState.contentType === 'solution'
+        ? parseSolutionMd(raw)
+        : parseIntegrationMd(raw);
+    } catch (err) {
+      batchState.files.push({
+        name: file.name, raw, parsed: null,
+        status: 'error', error: 'Parse error: ' + err.message,
+        strapiId: null, isUpdate: false, existingId: null,
+      });
+      continue;
+    }
+
+    const slug = batchState.contentType === 'solution'
+      ? parsed.individual_url
+      : parsed.detail_page_url;
+
+    batchState.files.push({
+      name: file.name, raw, parsed,
+      status: slug ? 'ready' : 'error',
+      error: slug ? null : 'Missing URL slug (individual_url or detail_page_url)',
+      strapiId: null, isUpdate: false, existingId: null, slug,
+    });
+  }
+
+  renderBatchFileList();
+  document.getElementById('batchFileListArea').style.display = 'block';
+  updatePushBatchBtnState();
+
+  // Show inline summary so user can verify
+  showBatchParseSummary();
+}
+
+function clearBatchFiles() {
+  batchState.files = [];
+  document.getElementById('batchFileList').innerHTML = '';
+  document.getElementById('batchFileListArea').style.display = 'none';
+  document.getElementById('batchParseSummary').style.display = 'none';
+  updatePushBatchBtnState();
+}
+
+function removeBatchFile(index) {
+  batchState.files.splice(index, 1);
+  renderBatchFileList();
+  if (batchState.files.length === 0) {
+    document.getElementById('batchFileListArea').style.display = 'none';
+  }
+  updatePushBatchBtnState();
+}
+
+function showBatchParseSummary() {
+  const el = document.getElementById('batchParseSummary');
+  const parsedFiles = batchState.files.filter(f => f.parsed);
+  if (parsedFiles.length === 0) { el.style.display = 'none'; return; }
+
+  const typeName = batchState.contentType === 'solution' ? 'Solution' : 'Integration';
+  let html = `<div class="batch-parse-summary">`;
+  html += `<div class="summary-header">Ready to upload ${parsedFiles.length} ${typeName} page(s) — please verify:</div>`;
+
+  // Collect all logo references across files
+  const logoRefs = new Set();
+  parsedFiles.forEach(f => {
+    if (f.parsed.product_logo) logoRefs.add(f.parsed.product_logo);
+    (f.parsed.related_industries || []).forEach(ind => {
+      if (ind.industry_logo) logoRefs.add(ind.industry_logo);
+    });
+  });
+
+  // Check which logos already exist in the upload cache
+  const logoCache = loadLogoCache();
+  const existingLogos = [...logoRefs].filter(name => logoCache[name]);
+  const missingLogos = [...logoRefs].filter(name => !logoCache[name]);
+
+  parsedFiles.forEach((f, i) => {
+    const title = (f.parsed.banner_title || f.parsed.meta_title || f.parsed.title || f.parsed.product_name || '').replace(/<[^>]*>/g, '') || '(no title)';
+    const hasError = !f.slug;
+    html += `<div class="batch-parse-entry ${hasError ? 'entry-error' : ''}">`;
+    html += `<span class="entry-idx">${i + 1}.</span>`;
+    html += `<span class="entry-slug">${f.slug ? f.slug : 'MISSING SLUG'}</span>`;
+    html += `<span class="entry-title">${title}</span>`;
+    html += `</div>`;
+  });
+
+  // Logo warnings
+  if (existingLogos.length > 0) {
+    html += `<div style="margin-top:12px; padding:10px 14px; background:rgba(255,95,87,0.1); border:1px solid var(--error); border-radius:8px;">`;
+    html += `<div style="color:var(--error); font-weight:600; font-size:12px; text-transform:uppercase; margin-bottom:6px;">Logo already in Strapi — will reuse, not re-upload</div>`;
+    existingLogos.forEach(name => {
+      html += `<div style="font-family:var(--mono); font-size:12px; color:var(--error); padding:2px 0;">${name} (cached ID: ${logoCache[name].id})</div>`;
+    });
+    html += `</div>`;
+  }
+  if (missingLogos.length > 0) {
+    html += `<div style="margin-top:8px; padding:10px 14px; background:rgba(255,179,64,0.06); border:1px solid rgba(255,179,64,0.3); border-radius:8px;">`;
+    html += `<div style="color:var(--warn); font-weight:600; font-size:12px; text-transform:uppercase; margin-bottom:6px;">Logos referenced but not yet uploaded</div>`;
+    missingLogos.forEach(name => {
+      html += `<div style="font-family:var(--mono); font-size:12px; color:var(--warn); padding:2px 0;">${name}</div>`;
+    });
+    html += `</div>`;
+  }
+
+  html += `</div>`;
+  el.innerHTML = html;
+  el.style.display = 'block';
+}
+
+function renderBatchFileList() {
+  const list = document.getElementById('batchFileList');
+  list.innerHTML = '';
+  let newCount = 0, updateCount = 0, doneCount = 0;
+
+  batchState.files.forEach((f, i) => {
+    if (f.status === 'done') doneCount++;
+    if (f.isUpdate) updateCount++; else newCount++;
+
+    const statusText = f.status === 'ready' ? '⏳ Ready' :
+                       f.status === 'checking' ? '🔍 Checking...' :
+                       f.status === 'will-create' ? '🆕 New (Draft)' :
+                       f.status === 'will-update' ? '✏️ Update' :
+                       f.status === 'processing' ? '⏳ Pushing...' :
+                       f.status === 'done' ? `✓ Done (ID: ${f.strapiId})` :
+                       f.status === 'error' ? `✕ ${f.error}` :
+                       f.status;
+
+    const cssClass = f.status === 'done' ? 'success' :
+                     f.status === 'error' ? 'error' :
+                     f.status === 'processing' ? 'processing' : '';
+
+    // Extract page title for display
+    const pageTitle = f.parsed
+      ? (f.parsed.banner_title || f.parsed.meta_title || f.parsed.title || f.parsed.product_name || '').replace(/<[^>]*>/g, '')
+      : '';
+
+    const el = document.createElement('div');
+    el.className = 'batch-file-item ' + cssClass;
+    el.innerHTML = `
+      <div class="batch-file-name" title="${f.name}">${f.name}</div>
+      <div class="batch-file-slug" title="${pageTitle}">${f.slug ? `slug: ${f.slug}` : '—'}${pageTitle ? ` — ${pageTitle.length > 50 ? pageTitle.slice(0, 50) + '…' : pageTitle}` : ''}</div>
+      <div class="batch-file-status">${statusText}</div>
+      <button class="batch-file-remove" onclick="removeBatchFile(${i})" title="Remove">✕</button>
+    `;
+    list.appendChild(el);
+  });
+
+  document.getElementById('batchCountFiles').textContent = batchState.files.length;
+  document.getElementById('batchCountNew').textContent = batchState.files.filter(f => !f.isUpdate).length;
+  document.getElementById('batchCountUpdate').textContent = batchState.files.filter(f => f.isUpdate).length;
+  document.getElementById('batchCountDone').textContent = doneCount;
+}
+
+function updatePushBatchBtnState() {
+  const readyFiles = batchState.files.filter(f => f.status !== 'error' && f.status !== 'done');
+  document.getElementById('pushBatchBtn').disabled = readyFiles.length === 0;
+}
+
+// ─── Logo File Handling ───────────────────────────────────────────────────────
+
+function onLogoDrop(e) {
+  e.preventDefault();
+  document.getElementById('logoUploadZone').classList.remove('drag-over');
+  addLogoFiles(Array.from(e.dataTransfer.files));
+}
+
+function onLogoFilesSelected(e) {
+  addLogoFiles(Array.from(e.target.files));
+  e.target.value = '';
+}
+
+function addLogoFiles(files) {
+  const imageFiles = files.filter(f => f.type.startsWith('image/'));
+  if (imageFiles.length === 0) { showAlert('No image files found', 'warn'); return; }
+
+  for (const file of imageFiles) {
+    if (batchState.logos[file.name]) continue; // skip dupes
+    const blob = file;
+    const localUrl = URL.createObjectURL(blob);
+    batchState.logos[file.name] = { blob, localUrl, strapiUrl: null, strapiMediaId: null, hash: null };
+  }
+
+  renderLogoGrid();
+  document.getElementById('logoUploadControls').style.display = 'block';
+}
+
+function renderLogoGrid() {
+  const grid = document.getElementById('logoGrid');
+  grid.innerHTML = '';
+  for (const [filename, data] of Object.entries(batchState.logos)) {
+    const el = document.createElement('div');
+    el.className = 'logo-item' + (data.strapiMediaId ? ' uploaded' : '');
+    el.innerHTML = `
+      <img src="${data.localUrl}" alt="${filename}">
+      <div class="logo-item-name" title="${filename}">${filename}</div>
+      <div class="logo-item-status">${data.strapiMediaId ? '✓ Uploaded' : 'Pending'}</div>
+    `;
+    grid.appendChild(el);
+  }
+}
+
+async function uploadAllLogos() {
+  const s = loadSettings();
+  if (!s.strapiToken) { showAlert('Set your Strapi API token in Settings first', 'warn'); openSettings(); return; }
+
+  const btn = document.getElementById('uploadLogosBtn');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span> Uploading logos...';
+  const statusEl = document.getElementById('logoUploadStatus');
+
+  const logoCache = loadLogoCache();
+  let done = 0, total = Object.keys(batchState.logos).length;
+
+  for (const [filename, data] of Object.entries(batchState.logos)) {
+    if (data.strapiMediaId) { done++; continue; } // already uploaded
+
+    // Hash for dedup
+    const hash = await hashBlob(data.blob);
+    data.hash = hash;
+
+    // Check cache
+    const cached = logoCache[hash];
+    if (cached && cached.url) {
+      data.strapiUrl = cached.url;
+      data.strapiMediaId = cached.id;
+      done++;
+      statusEl.textContent = `${done}/${total} (cached: ${filename})`;
+      renderLogoGrid();
+      continue;
+    }
+
+    // Upload
+    try {
+      const formData = new FormData();
+      formData.append('files', data.blob, filename);
+      let res = await fetch(`${s.strapiUrl}/api/upload`, {
+        method: 'POST', headers: { 'Authorization': `Bearer ${s.strapiToken}` }, body: formData,
+      });
+      if (!res.ok) {
+        res = await fetch(`${s.strapiUrl}/upload`, {
+          method: 'POST', headers: { 'Authorization': `Bearer ${s.strapiToken}` }, body: formData,
+        });
+      }
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const result = await res.json();
+      const uploaded = Array.isArray(result) ? result[0] : result;
+      const url = uploaded.url.startsWith('http') ? uploaded.url : s.strapiUrl + uploaded.url;
+      data.strapiUrl = url;
+      data.strapiMediaId = uploaded.id;
+      logoCache[hash] = { url, name: filename, id: uploaded.id };
+      saveLogoCache(logoCache);
+    } catch (err) {
+      statusEl.textContent = `Failed: ${filename} — ${err.message}`;
+    }
+
+    done++;
+    statusEl.textContent = `${done}/${total}`;
+    renderLogoGrid();
+  }
+
+  btn.disabled = false;
+  btn.innerHTML = '✓ All Logos Uploaded';
+  statusEl.textContent = `${total} logo(s) processed`;
+}
+
+// Resolve a logo filename reference to a Strapi media ID
+function resolveLogoId(filename) {
+  if (!filename) return null;
+  const data = batchState.logos[filename];
+  if (data && data.strapiMediaId) return data.strapiMediaId;
+  // Also check logo cache directly
+  const cache = loadLogoCache();
+  for (const entry of Object.values(cache)) {
+    if (entry.name === filename) return entry.id;
+  }
+  return null;
+}
+
+// ─── Fetch Integration Tags from Strapi ───────────────────────────────────────
+async function fetchIntegrationTags() {
+  if (batchState.integrationTags) return batchState.integrationTags;
+  const s = loadSettings();
+  if (!s.strapiToken) return [];
+  const headers = { 'Authorization': `Bearer ${s.strapiToken}` };
+  try {
+    let res = await fetch(`${s.strapiUrl}/api/integration-tags?pagination[pageSize]=200`, { headers });
+    if (!res.ok) res = await fetch(`${s.strapiUrl}/integration-tags`, { headers });
+    if (res.ok) {
+      const data = await res.json();
+      batchState.integrationTags = (Array.isArray(data) ? data : data.data || [])
+        .map(t => ({ id: t.id, name: t.tag_name || t.attributes?.tag_name || t.name }))
+        .filter(t => t.name);
+    } else {
+      batchState.integrationTags = [];
+    }
+  } catch { batchState.integrationTags = []; }
+  return batchState.integrationTags;
+}
+
+// Resolve tag names to IDs
+function resolveIntegrationTagIds(names) {
+  if (!batchState.integrationTags || !names || names.length === 0) return [];
+  return names.map(name => {
+    const tag = batchState.integrationTags.find(t =>
+      t.name.toLowerCase() === name.toLowerCase());
+    return tag ? tag.id : null;
+  }).filter(Boolean);
+}
+
+// ─── Upsert Logic: Check if entry exists ──────────────────────────────────────
+async function checkExistingEntry(slug, contentType) {
+  const s = loadSettings();
+  if (!s.strapiToken || !slug) return null;
+  const headers = { 'Authorization': `Bearer ${s.strapiToken}` };
+
+  const urlField = contentType === 'solution' ? 'individual_url' : 'detail_page_url';
+  const apiPath = contentType === 'solution' ? 'solutions' : 'integrations';
+
+  try {
+    // Strapi v4 filter — fetch with field filter
+    const res = await fetch(
+      `${s.strapiUrl}/api/${apiPath}?filters[${urlField}][$eq]=${encodeURIComponent(slug)}&pagination[pageSize]=10`,
+      { headers }
+    );
+    if (res.ok) {
+      const data = await res.json();
+      const items = Array.isArray(data) ? data : data.data || [];
+      // Strict validation: only match if the returned entry's slug actually matches
+      for (const item of items) {
+        const attrs = item.attributes || item;
+        const entrySlug = attrs[urlField];
+        if (entrySlug === slug) {
+          return item.id;
+        }
+      }
+    }
+  } catch {}
+  return null;
+}
+
+// ─── Push to Strapi ───────────────────────────────────────────────────────────
+
+async function pushBatchToStrapi() {
+  const s = loadSettings();
+  if (!s.strapiToken) { showAlert('Set your Strapi API token in Settings first', 'warn'); openSettings(); return; }
+
+  const btn = document.getElementById('pushBatchBtn');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span> Processing...';
+
+  document.getElementById('batchLogCard').style.display = 'block';
+  const logEl = document.getElementById('batchLog');
+  logEl.innerHTML = '';
+
+  const contentType = batchState.contentType;
+  const apiPath = contentType === 'solution' ? 'solutions' : 'integrations';
+  const headers = {
+    'Authorization': `Bearer ${s.strapiToken}`,
+    'Content-Type': 'application/json',
+  };
+
+  // Fetch integration tags if needed
+  if (contentType === 'integration') {
+    addLog(logEl, 'Fetching integration tags...', 'info');
+    await fetchIntegrationTags();
+    addLog(logEl, `Found ${(batchState.integrationTags || []).length} tags`, 'ok');
+  }
+
+  // Phase 1: Check which entries exist (upsert detection)
+  addLog(logEl, 'Checking for existing entries...', 'info');
+  const filesToProcess = batchState.files.filter(f => f.parsed && f.status !== 'done' && f.status !== 'error');
+
+  for (const file of filesToProcess) {
+    file.status = 'checking';
+    renderBatchFileList();
+    const existingId = await checkExistingEntry(file.slug, contentType);
+    if (existingId) {
+      file.isUpdate = true;
+      file.existingId = typeof existingId === 'object' ? existingId.id : existingId;
+
+      // Both Solution and Integration: overwrite warning for existing entries
+      file.status = 'warn-overwrite';
+      const typeLabel = contentType === 'solution' ? 'SOLUTION' : 'INTEGRATION';
+      addLog(logEl, `🚨 ${file.slug} → Already exists (ID: ${file.existingId}) — ${typeLabel} OVERWRITE NEEDS CONFIRMATION`, 'err');
+    } else {
+      file.isUpdate = false;
+      file.existingId = null;
+      file.status = 'will-create';
+      addLog(logEl, `${file.slug} → New (will create as draft)`, 'info');
+    }
+    renderBatchFileList();
+  }
+
+  // Show inline review panel — no popups
+  const dangerousFiles = filesToProcess.filter(f => f.status === 'warn-overwrite');
+  const safeCreates = filesToProcess.filter(f => f.status === 'will-create');
+  const safeUpdates = filesToProcess.filter(f => f.status === 'will-update');
+
+  let reviewHtml = '<div class="batch-review-panel">';
+  reviewHtml += '<div class="batch-review-header">Review before pushing</div>';
+
+  if (safeCreates.length > 0) {
+    reviewHtml += '<div class="batch-review-section batch-review-safe">';
+    reviewHtml += `<div class="batch-review-label">NEW — will create as draft (${safeCreates.length})</div>`;
+    safeCreates.forEach(f => { reviewHtml += `<div class="batch-review-entry">${f.slug}</div>`; });
+    reviewHtml += '</div>';
+  }
+  if (safeUpdates.length > 0) {
+    reviewHtml += '<div class="batch-review-section batch-review-update">';
+    reviewHtml += `<div class="batch-review-label">UPDATE — content updated, publish state unchanged (${safeUpdates.length})</div>`;
+    safeUpdates.forEach(f => { reviewHtml += `<div class="batch-review-entry">${f.slug} (ID: ${f.existingId})</div>`; });
+    reviewHtml += '</div>';
+  }
+  if (dangerousFiles.length > 0) {
+    reviewHtml += '<div class="batch-review-section batch-review-danger">';
+    reviewHtml += `<div class="batch-review-label">OVERWRITE WARNING — These pages already exist and may be LIVE with ADS running</div>`;
+    dangerousFiles.forEach(f => {
+      reviewHtml += `<div class="batch-review-entry batch-review-danger-entry">` +
+        `<span>${f.slug} (ID: ${f.existingId})</span>` +
+        `<label class="batch-review-toggle"><input type="checkbox" data-slug="${f.slug}" class="overwrite-check"> Allow overwrite</label>` +
+        `</div>`;
+    });
+    reviewHtml += '</div>';
+  }
+
+  if (safeCreates.length === 0 && safeUpdates.length === 0 && dangerousFiles.length === 0) {
+    addLog(logEl, '\nNo entries to push — all skipped or already done.', 'warn');
+    btn.disabled = false;
+    btn.innerHTML = 'Push All to Strapi';
+    return;
+  }
+
+  reviewHtml += '<div class="batch-review-actions">' +
+    '<button class="btn btn-ghost" id="batchReviewCancel">Cancel</button>' +
+    '<button class="btn btn-primary" id="batchReviewConfirm">Confirm & Push</button>' +
+    '</div></div>';
+
+  const reviewEl = document.getElementById('batchReviewArea');
+  reviewEl.innerHTML = reviewHtml;
+  reviewEl.style.display = 'block';
+  btn.disabled = true;
+
+  // Wait for user action via inline buttons
+  const userAction = await new Promise(resolve => {
+    document.getElementById('batchReviewConfirm').addEventListener('click', () => resolve('confirm'));
+    document.getElementById('batchReviewCancel').addEventListener('click', () => resolve('cancel'));
+  });
+
+  if (userAction === 'cancel') {
+    addLog(logEl, 'Cancelled by user.', 'warn');
+    reviewEl.style.display = 'none';
+    btn.disabled = false;
+    btn.innerHTML = 'Push All to Strapi';
+    return;
+  }
+
+  // Apply overwrite decisions for dangerous files
+  for (const file of dangerousFiles) {
+    const cb = reviewEl.querySelector(`.overwrite-check[data-slug="${file.slug}"]`);
+    if (cb && cb.checked) {
+      file.status = 'will-update';
+      addLog(logEl, `⚠ ${file.slug} (ID: ${file.existingId}) → Overwrite approved`, 'warn');
+    } else {
+      file.status = 'skipped';
+      addLog(logEl, `${file.slug} → Skipped (overwrite not approved)`, 'info');
+    }
+  }
+  reviewEl.style.display = 'none';
+
+  const actionableFiles = filesToProcess.filter(f => f.status === 'will-update' || f.status === 'will-create');
+  if (actionableFiles.length === 0) {
+    addLog(logEl, '\nNo entries to push — all skipped.', 'warn');
+    btn.disabled = false;
+    btn.innerHTML = 'Push All to Strapi';
+    return;
+  }
+
+  // Phase 2: Push each file
+  addLog(logEl, `\nPushing ${actionableFiles.length} entries to Strapi...`, 'info');
+
+  for (const file of actionableFiles) {
+    file.status = 'processing';
+    renderBatchFileList();
+    addLog(logEl, `Processing: ${file.name} (${file.slug})...`, 'info');
+
+    try {
+      let payload;
+
+      if (contentType === 'solution') {
+        payload = buildSolutionPayload(file.parsed);
+      } else {
+        payload = buildIntegrationPayload(file.parsed);
+      }
+
+      const method = file.isUpdate ? 'PUT' : 'POST';
+      const endpoint = file.isUpdate
+        ? `${s.strapiUrl}/api/${apiPath}/${file.existingId}`
+        : `${s.strapiUrl}/api/${apiPath}`;
+
+      if (file.isUpdate) {
+        // Update: do NOT touch publishedAt — preserve the existing published state
+        delete payload.publishedAt;
+      } else {
+        // New: always create as draft
+        payload.publishedAt = null;
+      }
+
+      const res = await fetch(endpoint, {
+        method, headers,
+        body: JSON.stringify({ data: payload }),
+      });
+
+      if (!res.ok) {
+        const errText = await res.text();
+        throw new Error(`HTTP ${res.status}: ${errText.slice(0, 300)}`);
+      }
+
+      const result = await res.json();
+      const entryId = result.data?.id || result.id;
+      file.strapiId = entryId;
+      file.status = 'done';
+      addLog(logEl, `✓ ${file.slug} → ${file.isUpdate ? 'Updated' : 'Created'} (ID: ${entryId})`, 'ok');
+
+    } catch (err) {
+      file.status = 'error';
+      file.error = err.message;
+      addLog(logEl, `✕ ${file.slug}: ${err.message}`, 'err');
+    }
+
+    renderBatchFileList();
+  }
+
+  // Summary
+  const succeeded = batchState.files.filter(f => f.status === 'done').length;
+  const failed = batchState.files.filter(f => f.status === 'error').length;
+  addLog(logEl, `\nDone! ${succeeded} succeeded, ${failed} failed.`, succeeded > 0 ? 'ok' : 'warn');
+
+  btn.disabled = false;
+  btn.innerHTML = 'Push All to Strapi';
+  updatePushBatchBtnState();
+
+  // Show success if all done
+  if (failed === 0 && succeeded > 0) {
+    showBatchSuccess(succeeded, contentType);
+  }
+}
+
+function buildSolutionPayload(parsed) {
+  // Resolve logo IDs for related_industries
+  const relatedIndustries = (parsed.related_industries || []).map(ind => {
+    const logoId = resolveLogoId(ind.industry_logo);
+    const item = {
+      industry_name: ind.industry_name,
+      related_link: ind.related_link || null,
+    };
+    if (logoId) item.industry_logo = logoId;
+    return item;
+  });
+
+  return {
+    individual_url: parsed.individual_url,
+    meta_title: parsed.meta_title || null,
+    meta_description: parsed.meta_description || null,
+    meta_keywords: parsed.meta_keywords || null,
+    banner_title: parsed.banner_title || null,
+    banner_desc: parsed.banner_desc || null,
+    ai_app_title: parsed.ai_app_title || null,
+    ai_app_desc: parsed.ai_app_desc || null,
+    ai_app_contents: parsed.ai_app_contents,
+    advantage_title: parsed.advantage_title || null,
+    advantage_desc: parsed.advantage_desc || null,
+    key_advantages: parsed.key_advantages,
+    advantage_contents: parsed.advantage_contents,
+    resource_title: parsed.resource_title || null,
+    resource_desc: parsed.resource_desc || null,
+    resource_contents: parsed.resource_contents,
+    cta_title: parsed.cta_title || null,
+    cta_desc: parsed.cta_desc || null,
+    related_industries: relatedIndustries,
+    quotations: parsed.quotations || [],
+    locale: 'en',
+    publishedAt: null,
+  };
+}
+
+function buildIntegrationPayload(parsed) {
+  const tagIds = resolveIntegrationTagIds(parsed.integration_tag_names || []);
+  const logoId = resolveLogoId(parsed.product_logo);
+
+  const payload = {
+    detail_page_url: parsed.detail_page_url,
+    meta_title: parsed.meta_title || null,
+    meta_description: parsed.meta_description || null,
+    meta_keywords: parsed.meta_keywords || null,
+    product_name: parsed.product_name || null,
+    product_desc: parsed.product_desc || null,
+    title: parsed.title || null,
+    description: parsed.description || null,
+    use_cta_label: parsed.use_cta_label || null,
+    use_cta_link: parsed.use_cta_link || null,
+    hubspot_form_id: parsed.hubspot_form_id || null,
+    hubspot_portal_id: parsed.hubspot_portal_id || null,
+    hubspot_region: parsed.hubspot_region || null,
+    form_page_title: parsed.form_page_title || null,
+    form_page_desc: parsed.form_page_desc || null,
+    order: parsed.order || null,
+    integration_tags: tagIds,
+    contents: parsed.contents || [],
+    related_resources: parsed.related_resources || [],
+    locale: 'en',
+    publishedAt: null,
+  };
+
+  if (logoId) payload.product_logo = logoId;
+
+  return payload;
+}
+
+function showBatchSuccess(count, contentType) {
+  const s = loadSettings();
+  const typeName = contentType === 'solution' ? 'Solution' : 'Integration';
+  const apiPath = contentType === 'solution' ? 'solutions' : 'integrations';
+  const apiId = contentType === 'solution' ? 'api::solution.solution' : 'api::integration.integration';
+
+  document.getElementById('batchSuccessTitle').textContent = `${count} ${typeName} Page(s) Pushed!`;
+  document.getElementById('batchSuccessSub').textContent =
+    'New pages are saved as draft. Updated pages preserve their existing state.';
+
+  // Build links
+  const linksEl = document.getElementById('batchSuccessLinks');
+  linksEl.innerHTML = '';
+  batchState.files.filter(f => f.status === 'done').forEach(f => {
+    const adminUrl = `${s.strapiUrl}/admin/content-manager/collection-types/${apiId}/${f.strapiId}`;
+    const link = document.createElement('a');
+    link.href = adminUrl;
+    link.target = '_blank';
+    link.className = 'strapi-admin-link';
+    link.style.cssText = 'display:block; margin-bottom:8px;';
+    link.textContent = `${f.slug} → ID: ${f.strapiId} (${f.isUpdate ? 'Updated' : 'New'})`;
+    linksEl.appendChild(link);
+  });
+
+  document.getElementById('batchSuccessArea').style.display = 'block';
+}
+
+function resetBatchPanel() {
+  batchState.files = [];
+  // Don't clear logos — they persist across sessions
+  document.getElementById('batchFileList').innerHTML = '';
+  document.getElementById('batchFileListArea').style.display = 'none';
+  document.getElementById('batchParseSummary').style.display = 'none';
+  document.getElementById('batchReviewArea').style.display = 'none';
+  document.getElementById('batchLogCard').style.display = 'none';
+  document.getElementById('batchLog').innerHTML = '';
+  document.getElementById('batchSuccessArea').style.display = 'none';
+  updatePushBatchBtnState();
+}
 </script>
 
 <!-- ── Fullscreen preview modal ─────────────────────────────────────── -->
