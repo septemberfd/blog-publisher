@@ -2034,6 +2034,19 @@
         </p>
       </div>
 
+      <div id="strapiOverwriteWarning" style="display:none;" class="card" style="border: 2px solid var(--err);">
+        <div style="background: #fff3cd; border-left: 4px solid #e2a300; padding: 12px 16px; border-radius: 6px; margin-bottom: 12px;">
+          <div style="font-weight: 700; color: #856404; font-size: 14px; margin-bottom: 6px;">
+            ⚠ Slug already exists in Strapi
+          </div>
+          <div style="font-size: 13px; color: #664d03;" id="strapiOverwriteDetail"></div>
+        </div>
+        <div style="display:flex; gap: 10px;">
+          <button class="btn btn-ghost" id="strapiOverwriteCancel">Cancel</button>
+          <button class="btn btn-primary" id="strapiOverwriteConfirm" style="background: var(--err);">Update Existing Entry</button>
+        </div>
+      </div>
+
       <div id="strapiPublishLog" style="display:none;" class="card">
         <div class="card-title">Log</div>
         <div class="log" id="strapiLog"></div>
@@ -2325,6 +2338,7 @@ async function processZip(file) {
 // ─── .docx file (Feishu / Word) ───────────────────────────────────────────────
 // Uses mammoth.js to convert .docx → HTML, extracts embedded images,
 // then reuses the Google Docs HTML → Markdown pipeline.
+// Enhanced with Feishu-specific style mappings and post-processing.
 async function processDocx(file) {
   if (typeof mammoth === 'undefined') {
     showAlert('mammoth.js failed to load. Check your internet connection and refresh.', 'error');
@@ -2339,6 +2353,32 @@ async function processDocx(file) {
     const result = await mammoth.convertToHtml(
       { arrayBuffer },
       {
+        // Feishu / WPS / Word heading & code style mappings
+        styleMap: [
+          "p[style-name='标题 1'] => h1:fresh",
+          "p[style-name='标题 2'] => h2:fresh",
+          "p[style-name='标题 3'] => h3:fresh",
+          "p[style-name='标题 4'] => h4:fresh",
+          "p[style-name='标题 5'] => h5:fresh",
+          "p[style-name='标题 6'] => h6:fresh",
+          "p[style-name='标题'] => h1:fresh",
+          "p[style-name='heading 1'] => h1:fresh",
+          "p[style-name='heading 2'] => h2:fresh",
+          "p[style-name='heading 3'] => h3:fresh",
+          "p[style-name='heading 4'] => h4:fresh",
+          "p[style-name='heading 5'] => h5:fresh",
+          "p[style-name='heading 6'] => h6:fresh",
+          // Feishu code block styles
+          "p[style-name='Code'] => pre:fresh",
+          "p[style-name='Code Block'] => pre:fresh",
+          "p[style-name='代码'] => pre:fresh",
+          "p[style-name='代码块'] => pre:fresh",
+          "r[style-name='Code Char'] => code",
+          "r[style-name='代码 字符'] => code",
+          // Quote
+          "p[style-name='引用'] => blockquote:fresh",
+          "p[style-name='Quote'] => blockquote:fresh",
+        ],
         convertImage: mammoth.images.imgElement(function(image) {
           return image.read('base64').then(function(base64) {
             const ext = (image.contentType || 'image/png').split('/')[1] || 'png';
@@ -2355,8 +2395,15 @@ async function processDocx(file) {
       }
     );
 
+    if (result.messages && result.messages.length > 0) {
+      console.warn('[processDocx] mammoth warnings:', result.messages);
+    }
+
+    // Feishu-specific HTML post-processing before Markdown conversion
+    const fixedHtml = postprocessFeishuHtml(result.value);
+
     // Convert mammoth HTML → Markdown using existing pipeline
-    const md = convertGoogleDocToMarkdown(result.value);
+    const md = convertGoogleDocToMarkdown(fixedHtml);
     const { frontmatter, body } = splitFrontmatter(md);
     const content = extractContentSection(body);
     state.finalMarkdown = frontmatter ? (frontmatter + '\n' + content) : content;
@@ -2366,15 +2413,107 @@ async function processDocx(file) {
     state.title    = info.title || file.name;
     state.author   = info.author || '';
 
-    if (result.messages && result.messages.length > 0) {
-      console.warn('[processDocx] mammoth warnings:', result.messages);
-    }
-
     showParsedSummary(state.finalMarkdown);
   } catch (err) {
     showAlert('Failed to process .docx: ' + err.message, 'error');
     console.error(err);
   }
+}
+
+// ─── Feishu HTML post-processing ──────────────────────────────────────────────
+// Fixes patterns mammoth.js can't handle via styleMap alone:
+// 1. Merge consecutive <pre> elements into one code block
+// 2. Detect code blocks by background-color / monospace font on containers
+// 3. Detect headings by font-size when Word styles are missing
+function postprocessFeishuHtml(html) {
+  const parser = new DOMParser();
+  const doc = parser.parseFromString(html, 'text/html');
+
+  // ── 1. Detect code blocks: single-cell tables with background color ────────
+  // Feishu often exports code blocks as a table with one cell + grey background.
+  doc.querySelectorAll('table').forEach(table => {
+    const cells = table.querySelectorAll('td');
+    if (cells.length !== 1) return; // only single-cell tables
+    const cell = cells[0];
+    const style = cell.getAttribute('style') || table.getAttribute('style') || '';
+    const hasCodeBg = /background(-color)?\s*:\s*(#[ef][0-9a-f]{5}|#[cd][0-9a-f]{5}|rgb\s*\(\s*2[2-5]\d|grey|gray|#f5f5f5|#eee)/i.test(style);
+    const hasMono = /font-family\s*:[^;]*(?:monospace|Courier|Consolas|Monaco|Source Code|Menlo|Fira Code)/i.test(style);
+    if (hasCodeBg || hasMono) {
+      const pre = doc.createElement('pre');
+      pre.textContent = cell.textContent;
+      table.replaceWith(pre);
+    }
+  });
+
+  // ── 2. Merge consecutive <pre> elements into one fenced code block ─────────
+  // mammoth maps each Feishu code line to a separate <pre>; merge them.
+  const body = doc.body;
+  const children = Array.from(body.children);
+  for (let i = 0; i < children.length; i++) {
+    if (children[i].tagName !== 'PRE') continue;
+    const lines = [children[i].textContent];
+    let j = i + 1;
+    while (j < children.length && children[j].tagName === 'PRE') {
+      lines.push(children[j].textContent);
+      children[j].remove();
+      j++;
+    }
+    if (lines.length > 1) {
+      // Replace first <pre> with merged content
+      children[i].textContent = lines.join('\n');
+    }
+  }
+
+  // ── 3. Detect headings from font-size when paragraph styles are missing ────
+  // Feishu sometimes exports headings as <p> with large font-size instead of <h1>-<h6>.
+  doc.querySelectorAll('p').forEach(p => {
+    // Skip if already contains block elements or images
+    if (p.querySelector('img, table, pre')) return;
+    const text = p.textContent.trim();
+    if (!text || text.length > 200) return; // too long for a heading
+
+    // Check font-size on the <p> itself or its first <span>
+    let fontSize = 0;
+    const style = p.getAttribute('style') || '';
+    const sizeMatch = style.match(/font-size\s*:\s*(\d+)/);
+    if (sizeMatch) {
+      fontSize = parseInt(sizeMatch[1]);
+    } else {
+      const span = p.querySelector('span[style]');
+      if (span) {
+        const sm = (span.getAttribute('style') || '').match(/font-size\s*:\s*(\d+)/);
+        if (sm) fontSize = parseInt(sm[1]);
+      }
+    }
+
+    // Map font-size to heading level (Feishu typical sizes in pt)
+    let tag = null;
+    if (fontSize >= 26) tag = 'h1';
+    else if (fontSize >= 22) tag = 'h2';
+    else if (fontSize >= 17) tag = 'h3';
+    else if (fontSize >= 15) tag = 'h4';
+
+    if (tag) {
+      const h = doc.createElement(tag);
+      h.innerHTML = p.innerHTML;
+      p.replaceWith(h);
+    }
+  });
+
+  // ── 4. Detect code spans: <span> with monospace font not inside <pre> ──────
+  doc.querySelectorAll('span').forEach(span => {
+    if (span.closest('pre') || span.closest('code')) return;
+    const style = span.getAttribute('style') || '';
+    const isMono = /font-family\s*:[^;]*(?:monospace|Courier|Consolas|Monaco|Source Code|Menlo|Fira Code)/i.test(style);
+    const hasBg = /background(-color)?\s*:\s*(#[def][0-9a-f]{5}|rgb\s*\(\s*2[3-5]\d)/i.test(style);
+    if (isMono || hasBg) {
+      const code = doc.createElement('code');
+      code.textContent = span.textContent;
+      span.replaceWith(code);
+    }
+  });
+
+  return doc.body.innerHTML;
 }
 
 // ─── Google Docs HTML → Markdown ──────────────────────────────────────────────
@@ -2385,19 +2524,30 @@ function convertGoogleDocToMarkdown(html) {
     bulletListMarker: '-',
   });
 
-  // Google Docs tables: no <thead>/<th>, all <td> — custom rule needed
+  // Table conversion — handles Google Docs, Feishu, and standard Word tables.
+  // Supports colspan/rowspan (merged cells), missing <thead>, all <td> tables.
   td.addRule('gdocTable', {
     filter: 'table',
     replacement: (_content, node) => {
-      const rows = Array.from(node.querySelectorAll('tr'));
+      // Use only direct <tr> children (avoid nested table rows)
+      const tbody = node.querySelector('tbody') || node;
+      const rows = Array.from(tbody.querySelectorAll(':scope > tr'));
       if (!rows.length) return '';
-      const matrix = rows.map(tr =>
-        Array.from(tr.querySelectorAll('td, th')).map(cell => {
-          // Convert cell content through Turndown for inline formatting
-          const inner = td.turndown(cell.innerHTML).replace(/\n/g, ' ').replace(/\|/g, '\\|').trim();
-          return inner || ' ';
-        })
-      );
+
+      const matrix = rows.map(tr => {
+        const cells = [];
+        Array.from(tr.querySelectorAll('td, th')).forEach(cell => {
+          const inner = td.turndown(cell.innerHTML).replace(/\n/g, ' ').replace(/\|/g, '\\|').trim() || ' ';
+          const colspan = parseInt(cell.getAttribute('colspan')) || 1;
+          cells.push(inner);
+          // Fill extra columns for colspan
+          for (let c = 1; c < colspan; c++) cells.push(' ');
+        });
+        return cells;
+      });
+
+      if (!matrix.length || !matrix[0].length) return '';
+
       // Normalize column count to the max across all rows
       const cols = Math.max(...matrix.map(r => r.length));
       matrix.forEach(r => { while (r.length < cols) r.push(' '); });
@@ -3088,10 +3238,24 @@ async function compressOneImage(filename) {
 
   const compressed = await compressToTarget(imgData.blob);
 
-  // Revoke old localUrl and replace blob
-  URL.revokeObjectURL(imgData.localUrl);
+  // Track old blob URL and replace with new one
+  const oldLocalUrl = imgData.localUrl;
   state.images[filename].blob = compressed;
   state.images[filename].localUrl = URL.createObjectURL(compressed);
+
+  // Keep history of previous blob URLs so replaceImageUrls() fallback can find them
+  if (!state.images[filename]._previousLocalUrls) state.images[filename]._previousLocalUrls = [];
+  state.images[filename]._previousLocalUrls.push(oldLocalUrl);
+
+  // Update finalMarkdown: replace old blob URL with new one so replaceImageUrls()
+  // can find it later. Without this, compressed images leak stale blob: URLs.
+  if (state.finalMarkdown && oldLocalUrl) {
+    const escapedOld = oldLocalUrl.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    state.finalMarkdown = state.finalMarkdown.replace(
+      new RegExp(escapedOld, 'g'), state.images[filename].localUrl
+    );
+  }
+  // Don't revoke old URL — it may still be referenced in preview elements or undo state
 
   // Update card UI
   const card = document.getElementById('imgcard-' + CSS.escape(filename));
@@ -3309,6 +3473,24 @@ function replaceImageUrls() {
       );
     }
   }
+  // Fallback: build a map of ALL known blob URLs → strapiUrl (including _previousLocalUrls
+  // saved by compressOneImage) and sweep remaining blob: references.
+  const blobToStrapi = new Map();
+  for (const [, imgData] of Object.entries(state.images)) {
+    if (!imgData.strapiUrl) continue;
+    if (imgData.localUrl) blobToStrapi.set(imgData.localUrl, imgData.strapiUrl);
+    // Also map any previous blob URLs from before compression
+    if (imgData._previousLocalUrls) {
+      for (const oldUrl of imgData._previousLocalUrls) {
+        blobToStrapi.set(oldUrl, imgData.strapiUrl);
+      }
+    }
+  }
+  md = md.replace(/!\[([^\]]*)\]\((blob:[^)]+)\)/g, (match, alt, blobUrl) => {
+    if (blobToStrapi.has(blobUrl)) return `![${alt}](${blobToStrapi.get(blobUrl)})`;
+    return match;
+  });
+
   state.finalMarkdown = md;
 
   // Diagnostic: warn about remaining broken image references
@@ -4270,7 +4452,57 @@ async function pushToStrapiDraft() {
     };
 
     // Check for changes before re-push
-    const isUpdate = !!state.strapiEntryId;
+    let isUpdate = !!state.strapiEntryId;
+
+    // First-time push: check if a blog with this slug already exists in Strapi
+    if (!isUpdate) {
+      addLog(logEl, `Checking if slug "${slug}" already exists...`, 'info');
+      try {
+        const checkRes = await fetch(
+          `${s.strapiUrl}/api/blogs?filters[url][$eq]=${encodeURIComponent(slug)}&pagination[pageSize]=1`,
+          { headers: { 'Authorization': `Bearer ${s.strapiToken}` } }
+        );
+        if (checkRes.ok) {
+          const checkData = await checkRes.json();
+          const existing = Array.isArray(checkData) ? checkData : checkData.data || [];
+          const match = existing.find(item => (item.attributes || item).url === slug);
+          if (match) {
+            const existingId = match.id;
+            addLog(logEl, `🚨 Slug "${slug}" already exists (ID: ${existingId})`, 'err');
+
+            // Show inline warning panel instead of confirm() dialog
+            const warningEl = document.getElementById('strapiOverwriteWarning');
+            document.getElementById('strapiOverwriteDetail').innerHTML =
+              `Slug <strong>"${slug}"</strong> already exists in Strapi (ID: <strong>${existingId}</strong>).<br>` +
+              `Clicking "Update" will overwrite the existing entry while preserving its publish state.`;
+            warningEl.style.display = 'block';
+
+            const userAction = await new Promise(resolve => {
+              document.getElementById('strapiOverwriteConfirm').onclick = () => resolve('confirm');
+              document.getElementById('strapiOverwriteCancel').onclick = () => resolve('cancel');
+            });
+            warningEl.style.display = 'none';
+
+            if (userAction === 'cancel') {
+              btn.disabled = false;
+              btn.innerHTML = 'Push to Strapi (Draft)';
+              addLog(logEl, 'Cancelled — existing entry not overwritten.', 'warn');
+              return;
+            }
+            state.strapiEntryId = existingId;
+            isUpdate = true;
+            // When updating existing: preserve publish state
+            delete payload.publishedAt;
+            addLog(logEl, `Will update existing entry (ID: ${existingId})`, 'warn');
+          } else {
+            addLog(logEl, 'Slug is new — will create as draft.', 'ok');
+          }
+        }
+      } catch (e) {
+        addLog(logEl, `Slug check failed: ${e.message} — proceeding with create`, 'info');
+      }
+    }
+
     if (isUpdate && state._lastPushedPayload) {
       const currentPayload = JSON.stringify(payload);
       if (currentPayload === state._lastPushedPayload) {
@@ -5853,28 +6085,53 @@ async function checkExistingEntry(slug, contentType) {
   if (!s.strapiToken || !slug) return null;
   const headers = { 'Authorization': `Bearer ${s.strapiToken}` };
 
-  const urlField = contentType === 'solution' ? 'individual_url' : 'detail_page_url';
   const apiPath = contentType === 'solution' ? 'solutions' : 'integrations';
+  // All possible URL field names — check every one to find the right match
+  const urlFields = contentType === 'solution'
+    ? ['individual_url', 'url', 'slug', 'page_url']
+    : ['detail_page_url', 'url', 'slug', 'page_url'];
+  const slugLower = slug.toLowerCase();
 
   try {
-    // Strapi v4 filter — fetch with field filter
-    const res = await fetch(
-      `${s.strapiUrl}/api/${apiPath}?filters[${urlField}][$eq]=${encodeURIComponent(slug)}&pagination[pageSize]=10`,
-      { headers }
-    );
-    if (res.ok) {
+    let page = 1;
+    const pageSize = 100;
+    let loggedSample = false;
+    while (true) {
+      const res = await fetch(
+        `${s.strapiUrl}/api/${apiPath}?pagination[page]=${page}&pagination[pageSize]=${pageSize}`,
+        { headers }
+      );
+      if (!res.ok) break;
       const data = await res.json();
       const items = Array.isArray(data) ? data : data.data || [];
-      // Strict validation: only match if the returned entry's slug actually matches
+
+      // Log first entry's fields once so user can see what Strapi actually returns
+      if (!loggedSample && items.length > 0) {
+        const sample = items[0].attributes || items[0];
+        console.log('[checkExistingEntry] Sample entry fields:', Object.keys(sample).join(', '));
+        console.log('[checkExistingEntry] Sample URL field values:',
+          urlFields.map(f => `${f}="${sample[f] || ''}"`).join(', '));
+        loggedSample = true;
+      }
+
       for (const item of items) {
         const attrs = item.attributes || item;
-        const entrySlug = attrs[urlField];
-        if (entrySlug === slug) {
-          return item.id;
+        // Try every possible URL field name
+        for (const field of urlFields) {
+          const val = attrs[field];
+          if (val && String(val).toLowerCase() === slugLower) {
+            console.log(`[checkExistingEntry] Matched! field="${field}", value="${val}", id=${item.id}`);
+            return item.id;
+          }
         }
       }
+      if (items.length < pageSize) break;
+      page++;
     }
-  } catch {}
+    console.warn(`[checkExistingEntry] No match found for slug "${slug}" across fields: ${urlFields.join(', ')}`);
+  } catch (e) {
+    console.error('[checkExistingEntry] Error:', e);
+  }
   return null;
 }
 
@@ -6037,13 +6294,8 @@ async function pushBatchToStrapi() {
         ? `${s.strapiUrl}/api/${apiPath}/${file.existingId}`
         : `${s.strapiUrl}/api/${apiPath}`;
 
-      if (file.isUpdate) {
-        // Update: do NOT touch publishedAt — preserve the existing published state
-        delete payload.publishedAt;
-      } else {
-        // New: always create as draft
-        payload.publishedAt = null;
-      }
+      // Always save as draft — user must manually publish after verification
+      payload.publishedAt = null;
 
       const res = await fetch(endpoint, {
         method, headers,
@@ -6164,7 +6416,7 @@ function showBatchSuccess(count, contentType) {
 
   document.getElementById('batchSuccessTitle').textContent = `${count} ${typeName} Page(s) Pushed!`;
   document.getElementById('batchSuccessSub').textContent =
-    'New pages are saved as draft. Updated pages preserve their existing state.';
+    'All pages are saved as draft. Please verify in Strapi admin before publishing.';
 
   // Build links
   const linksEl = document.getElementById('batchSuccessLinks');
