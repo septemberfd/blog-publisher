@@ -2403,15 +2403,25 @@ async function processDocx(file) {
     const fixedHtml = postprocessFeishuHtml(result.value);
 
     // Convert mammoth HTML → Markdown using existing pipeline
-    const md = convertGoogleDocToMarkdown(fixedHtml);
+    let md = convertGoogleDocToMarkdown(fixedHtml);
+
+    // Feishu markdown post-processing: extract meta, fix headings
+    const feishuResult = postprocessFeishuMarkdown(md);
+    md = feishuResult.markdown;
+
     const { frontmatter, body } = splitFrontmatter(md);
     const content = extractContentSection(body);
     state.finalMarkdown = frontmatter ? (frontmatter + '\n' + content) : content;
 
     const info = parseDocInfo(state.finalMarkdown);
-    state.filename = info.id || stripExtension(file.name) + '.md';
-    state.title    = info.title || file.name;
-    state.author   = info.author || '';
+    const bodyMeta = extractBodyMeta(body);
+    const fm = feishuResult.meta;
+
+    // Priority: extracted meta fields > frontmatter > body heuristics > filename
+    state.title = fm.title || info.title || bodyMeta.title || file.name;
+    state.author = fm.author || info.author || bodyMeta.author || '';
+    const slugSource = fm.id || fm.slug || fm.url || info.id || '';
+    state.filename = (slugSource || titleToSlug(state.title) || stripExtension(file.name)) + '.md';
 
     showParsedSummary(state.finalMarkdown);
   } catch (err) {
@@ -2514,6 +2524,113 @@ function postprocessFeishuHtml(html) {
   });
 
   return doc.body.innerHTML;
+}
+
+// ─── Feishu Markdown post-processing ──────────────────────────────────────────
+// After Turndown converts HTML → Markdown, this function:
+// 1. Extracts meta fields (id, title, meta_description, etc.) from body text
+// 2. Converts bold-only short lines to proper heading markers (## / ###)
+// 3. Builds YAML frontmatter from extracted meta
+// 4. Returns cleaned markdown + meta object
+function postprocessFeishuMarkdown(md) {
+  const lines = md.split('\n');
+  const meta = {};
+  const bodyLines = [];
+  let hasRealHeadings = false;
+
+  // Known blog meta field names (case-insensitive match)
+  const metaKeyPattern = /^(id|title|author|date|tag|tags|meta_title|meta_description|meta_keywords|desc|abstract|cover|recommend|publishToMedium|slug|url)\s*[:：]\s*(.+)$/i;
+
+  // First pass: check if the document already has markdown headings
+  for (const line of lines) {
+    if (/^#{1,6}\s+/.test(line.trim())) { hasRealHeadings = true; break; }
+  }
+
+  // Second pass: extract meta and optionally convert bold→headings
+  let titleExtracted = false;
+  for (let li = 0; li < lines.length; li++) {
+    const line = lines[li];
+    const trimmed = line.trim();
+
+    // Skip empty lines — pass through
+    if (!trimmed) { bodyLines.push(line); continue; }
+
+    // Check for "key: value" meta patterns (only match standalone lines)
+    const metaMatch = trimmed.match(metaKeyPattern);
+    if (metaMatch) {
+      const key = metaMatch[1].toLowerCase();
+      const val = metaMatch[2].trim();
+      // Avoid false positives: "title: xxx" inside a paragraph shouldn't match
+      // Only match if this line is ONLY the key:value (no surrounding text)
+      if (val) {
+        meta[key] = val;
+        continue; // Remove meta line from body
+      }
+    }
+
+    // Bold-only lines → headings (only if document has NO real headings)
+    if (!hasRealHeadings) {
+      const boldMatch = trimmed.match(/^\*\*(.+)\*\*$/);
+      if (boldMatch && trimmed.length < 150) {
+        const text = boldMatch[1].trim();
+        // Heuristic: headings are short, don't end with period/comma, no sentence structure
+        const looksLikeHeading = text.length < 100 && !/[.，。,;；]$/.test(text);
+        if (looksLikeHeading) {
+          if (!titleExtracted) {
+            bodyLines.push('# ' + text);
+            titleExtracted = true;
+            if (!meta.title) meta.title = text;
+          } else {
+            bodyLines.push('## ' + text);
+          }
+          continue;
+        }
+      }
+    }
+
+    // Extract title from first H1 if present
+    if (!meta.title) {
+      const h1Match = trimmed.match(/^#\s+(.+)$/);
+      if (h1Match) meta.title = h1Match[1].trim();
+    }
+
+    bodyLines.push(line);
+  }
+
+  // Build YAML frontmatter from extracted meta
+  let output = '';
+  if (Object.keys(meta).length > 0) {
+    const yamlLines = ['---'];
+    // Map common field aliases to canonical names
+    if (meta.slug && !meta.id) meta.id = meta.slug;
+    if (meta.url && !meta.id) meta.id = meta.url;
+    if (meta.abstract && !meta.desc) meta.desc = meta.abstract;
+    if (meta.meta_description && !meta.desc) meta.desc = meta.meta_description;
+    // Write fields in preferred order
+    const fieldOrder = ['id', 'title', 'author', 'date', 'tag', 'tags', 'meta_title', 'meta_description', 'meta_keywords', 'desc', 'cover', 'recommend', 'publishToMedium'];
+    const written = new Set();
+    for (const key of fieldOrder) {
+      if (meta[key]) {
+        yamlLines.push(`${key}: ${meta[key]}`);
+        written.add(key);
+      }
+    }
+    // Write any remaining fields
+    for (const [key, val] of Object.entries(meta)) {
+      if (!written.has(key) && key !== 'slug' && key !== 'url' && key !== 'abstract') {
+        yamlLines.push(`${key}: ${val}`);
+      }
+    }
+    yamlLines.push('---');
+    output = yamlLines.join('\n') + '\n' + bodyLines.join('\n');
+  } else {
+    output = bodyLines.join('\n');
+  }
+
+  // Clean up excessive blank lines
+  output = output.replace(/\n{3,}/g, '\n\n').trim();
+
+  return { markdown: output, meta };
 }
 
 // ─── Google Docs HTML → Markdown ──────────────────────────────────────────────
@@ -2796,7 +2913,8 @@ function parseDocInfo(markdown) {
     tags:            extractField('tags'),
     meta_title:      extractField('meta_title'),
     meta_keywords:   extractField('meta_keywords'),
-    desc:            extractField('desc'),
+    desc:            extractField('desc') || extractField('abstract'),
+    meta_description: extractField('meta_description'),
     recommend:       extractField('recommend'),
     publishToMedium: extractField('publishToMedium'),
     cover:           extractField('cover'),
@@ -4198,7 +4316,7 @@ function populateZillizForm(markdown) {
   const rawSlug = info.id ? info.id.replace(/\.md$/, '') : '';
   const slug = rawSlug || titleToSlug(titleVal).replace(/\.md$/, '');
   document.getElementById('z_slug').value = slug;
-  document.getElementById('z_abstract').value = info.desc || '';
+  document.getElementById('z_abstract').value = info.desc || info.meta_description || '';
 
   // Title → slug auto-sync (unless user manually edits slug)
   // Use a shared state object so listeners are only added once
@@ -4290,7 +4408,7 @@ function populateZillizForm(markdown) {
 
   // SEO fields
   document.getElementById('z_metaTitle').value = info.meta_title || info.title || '';
-  document.getElementById('z_metaDesc').value = info.desc || '';
+  document.getElementById('z_metaDesc').value = info.desc || info.meta_description || '';
   document.getElementById('z_metaKeywords').value = info.meta_keywords || '';
 
   // SEO character counters
