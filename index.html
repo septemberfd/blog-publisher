@@ -2644,11 +2644,10 @@ function postprocessFeishuMarkdown(md) {
   }
 
   // Strip bold markers from markdown headings (safety net for Feishu bold headings)
-  const cleanedBody = bodyLines.map(l => {
-    const hm = l.match(/^(#{1,6}\s+)\*\*(.+?)\*\*\s*$/);
-    return hm ? hm[1] + hm[2] : l;
-  });
-  bodyLines = cleanedBody;
+  for (let i = 0; i < bodyLines.length; i++) {
+    const hm = bodyLines[i].match(/^(#{1,6}\s+)\*\*(.+?)\*\*\s*$/);
+    if (hm) bodyLines[i] = hm[1] + hm[2];
+  }
 
   // Build YAML frontmatter from extracted meta
   let output = '';
