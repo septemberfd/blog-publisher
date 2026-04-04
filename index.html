@@ -2350,11 +2350,30 @@ async function processDocx(file) {
     let imgIndex = 0;
 
     // Convert .docx → HTML, extracting images as blobs
+    // Feishu docx has empty styles.xml but uses pStyle IDs (1=H1, 2=H2, 3=H3).
+    // Use transformDocument to patch style names so mammoth's styleMap can match.
+    const feishuTransform = mammoth.transforms.paragraph(function(para) {
+      // Feishu uses numeric style IDs without style definitions
+      if (para.styleId && /^[1-9]$/.test(para.styleId) && !para.styleName) {
+        para.styleName = 'Heading ' + para.styleId;
+      }
+      return para;
+    });
+
     const result = await mammoth.convertToHtml(
       { arrayBuffer },
       {
-        // Feishu / WPS / Word heading & code style mappings
+        transformDocument: feishuTransform,
+        // Heading & code style mappings (both name-based and Feishu ID-patched)
         styleMap: [
+          // Standard + Feishu patched headings
+          "p[style-name='Heading 1'] => h1:fresh",
+          "p[style-name='Heading 2'] => h2:fresh",
+          "p[style-name='Heading 3'] => h3:fresh",
+          "p[style-name='Heading 4'] => h4:fresh",
+          "p[style-name='Heading 5'] => h5:fresh",
+          "p[style-name='Heading 6'] => h6:fresh",
+          // Chinese style names (WPS / older Feishu)
           "p[style-name='标题 1'] => h1:fresh",
           "p[style-name='标题 2'] => h2:fresh",
           "p[style-name='标题 3'] => h3:fresh",
@@ -2362,13 +2381,7 @@ async function processDocx(file) {
           "p[style-name='标题 5'] => h5:fresh",
           "p[style-name='标题 6'] => h6:fresh",
           "p[style-name='标题'] => h1:fresh",
-          "p[style-name='heading 1'] => h1:fresh",
-          "p[style-name='heading 2'] => h2:fresh",
-          "p[style-name='heading 3'] => h3:fresh",
-          "p[style-name='heading 4'] => h4:fresh",
-          "p[style-name='heading 5'] => h5:fresh",
-          "p[style-name='heading 6'] => h6:fresh",
-          // Feishu code block styles
+          // Code block styles
           "p[style-name='Code'] => pre:fresh",
           "p[style-name='Code Block'] => pre:fresh",
           "p[style-name='代码'] => pre:fresh",
@@ -2539,7 +2552,15 @@ function postprocessFeishuMarkdown(md) {
   let hasRealHeadings = false;
 
   // Known blog meta field names (case-insensitive match)
-  const metaKeyPattern = /^(id|title|author|date|tag|tags|meta_title|meta_description|meta_keywords|desc|abstract|cover|recommend|publishToMedium|slug|url)\s*[:：]\s*(.+)$/i;
+  const metaKeys = 'id|title|author|date|tag|tags|meta_title|meta_description|meta_keywords|desc|abstract|cover|recommend|publishToMedium|slug|url|URL slug';
+  const metaKeysRe = metaKeys.replace(/\s/g, '\\s*');
+  // Match: plain "key: value", bold "**key:** value", or list "- **key:** value"
+  const metaKeyPattern = new RegExp(
+    '^(?:[-*]\\s*)?(?:\\*\\*)?(' + metaKeysRe + ')(?:\\*\\*)?\\s*[:：]\\s*(.+)$', 'i'
+  );
+
+  // Detect "Meta Information" section header to grab meta from list blocks
+  const metaSectionPattern = /^#{0,4}\s*\*{0,2}Meta\s*(?:Information|Info|信息)?\*{0,2}\s*$/i;
 
   // First pass: check if the document already has markdown headings
   for (const line of lines) {
@@ -2548,24 +2569,40 @@ function postprocessFeishuMarkdown(md) {
 
   // Second pass: extract meta and optionally convert bold→headings
   let titleExtracted = false;
+  let inMetaSection = false;
   for (let li = 0; li < lines.length; li++) {
     const line = lines[li];
     const trimmed = line.trim();
 
-    // Skip empty lines — pass through
-    if (!trimmed) { bodyLines.push(line); continue; }
+    // Skip empty lines — pass through (but end meta section on blank line after non-meta)
+    if (!trimmed) {
+      if (!inMetaSection) bodyLines.push(line);
+      continue;
+    }
 
-    // Check for "key: value" meta patterns (only match standalone lines)
+    // Detect "Meta Information" section — skip the header and consume its list items
+    if (metaSectionPattern.test(trimmed)) {
+      inMetaSection = true;
+      continue; // Remove the "Meta Information" header from body
+    }
+
+    // Check for "key: value" / "**key:** value" / "- **key:** value" meta patterns
     const metaMatch = trimmed.match(metaKeyPattern);
     if (metaMatch) {
-      const key = metaMatch[1].toLowerCase();
-      const val = metaMatch[2].trim();
-      // Avoid false positives: "title: xxx" inside a paragraph shouldn't match
-      // Only match if this line is ONLY the key:value (no surrounding text)
+      let key = metaMatch[1].replace(/\s+/g, '_').toLowerCase();
+      // Normalize "url_slug" → "id"
+      if (key === 'url_slug') key = 'id';
+      const val = metaMatch[2].trim().replace(/\*+$/g, '').trim();
       if (val) {
         meta[key] = val;
         continue; // Remove meta line from body
       }
+    }
+
+    // If we were in meta section but hit a non-meta line, exit meta section
+    if (inMetaSection) {
+      inMetaSection = false;
+      // This line is not meta — fall through to normal processing
     }
 
     // Bold-only lines → headings (only if document has NO real headings)
@@ -2948,10 +2985,16 @@ function titleToSlug(title) {
 // ─── Split YAML frontmatter from body ─────────────────────────────────────────
 // Returns { frontmatter: "---\n...\n---\n", body: "rest of text" }
 function splitFrontmatter(text) {
-  const m = text.match(/^(---\r?\n[\s\S]*?\r?\n---)\r?\n?([\s\S]*)$/);
+  // Support standard --- and also ... / *** / ─── (horizontal rule variants)
+  // Feishu auto-converts --- to a horizontal rule, so we accept alternatives.
+  const fmDelim = '(?:---|\\.\\.\\.|\\*\\*\\*|───+|—{3,})';
+  const re = new RegExp('^(' + fmDelim + '\\r?\\n[\\s\\S]*?\\r?\\n' + fmDelim + ')\\r?\\n?([\\s\\S]*)$');
+  const m = text.match(re);
   if (m) {
-    // Remove blank lines inside the YAML block (Feishu exports often add them)
-    const cleanedFm = m[1].replace(/\n\n+/g, '\n');
+    // Normalize delimiters back to --- and remove blank lines inside the YAML block
+    const cleanedFm = m[1]
+      .replace(/^(?:\.\.\.|─+|—{3,}|\*\*\*)/gm, '---')
+      .replace(/\n\n+/g, '\n');
     return { frontmatter: cleanedFm + '\n', body: m[2] };
   }
   return { frontmatter: '', body: text };
