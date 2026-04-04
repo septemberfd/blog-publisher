@@ -2523,7 +2523,16 @@ function postprocessFeishuHtml(html) {
     }
   });
 
-  // ── 4. Detect code spans: <span> with monospace font not inside <pre> ──────
+  // ── 4. Strip <strong>/<b> inside headings ─────────────────────────────────
+  // Feishu marks heading text as bold in the docx XML even though it's already
+  // a heading. This causes Turndown to output "## **text**" instead of "## text".
+  doc.querySelectorAll('h1, h2, h3, h4, h5, h6').forEach(h => {
+    h.querySelectorAll('strong, b').forEach(bold => {
+      bold.replaceWith(...bold.childNodes);
+    });
+  });
+
+  // ── 5. Detect code spans: <span> with monospace font not inside <pre> ──────
   doc.querySelectorAll('span').forEach(span => {
     if (span.closest('pre') || span.closest('code')) return;
     const style = span.getAttribute('style') || '';
@@ -2592,7 +2601,7 @@ function postprocessFeishuMarkdown(md) {
       let key = metaMatch[1].replace(/\s+/g, '_').toLowerCase();
       // Normalize "url_slug" → "id"
       if (key === 'url_slug') key = 'id';
-      const val = metaMatch[2].trim().replace(/\*+$/g, '').trim();
+      const val = metaMatch[2].trim().replace(/\*\*/g, '').trim();
       if (val) {
         meta[key] = val;
         continue; // Remove meta line from body
@@ -2628,11 +2637,18 @@ function postprocessFeishuMarkdown(md) {
     // Extract title from first H1 if present
     if (!meta.title) {
       const h1Match = trimmed.match(/^#\s+(.+)$/);
-      if (h1Match) meta.title = h1Match[1].trim();
+      if (h1Match) meta.title = h1Match[1].replace(/\*\*/g, '').trim();
     }
 
     bodyLines.push(line);
   }
+
+  // Strip bold markers from markdown headings (safety net for Feishu bold headings)
+  const cleanedBody = bodyLines.map(l => {
+    const hm = l.match(/^(#{1,6}\s+)\*\*(.+?)\*\*\s*$/);
+    return hm ? hm[1] + hm[2] : l;
+  });
+  bodyLines = cleanedBody;
 
   // Build YAML frontmatter from extracted meta
   let output = '';
