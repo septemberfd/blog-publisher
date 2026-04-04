@@ -2562,11 +2562,15 @@ function postprocessFeishuMarkdown(md) {
 
   // Known blog meta field names (case-insensitive match)
   const metaKeys = 'id|title|author|date|tag|tags|meta_title|meta_description|meta_keywords|desc|abstract|cover|recommend|publishToMedium|slug|url|URL slug';
-  const metaKeysRe = metaKeys.replace(/\s/g, '\\s*');
-  // Match: plain "key: value", bold "**key:** value", or list "- **key:** value"
+  // Make separators flexible: spaces, underscores, hyphens all interchangeable
+  const metaKeysRe = metaKeys.replace(/[\s_]/g, '[\\s_-]*');
+  // Match: plain "key: value", bold "**key:** value", list "- **key:** value", numbered "1. **key:** value"
   const metaKeyPattern = new RegExp(
-    '^(?:[-*]\\s*)?(?:\\*\\*)?(' + metaKeysRe + ')(?:\\*\\*)?\\s*[:：]\\s*(.+)$', 'i'
+    '^(?:(?:[-*+]|\\d+[.)])\\s*)?(?:\\*\\*)?(' + metaKeysRe + ')(?:\\*\\*)?\\s*[:：]\\s*(.+)$', 'i'
   );
+
+  console.log('[Feishu meta] First 30 lines of markdown for meta extraction:');
+  lines.slice(0, 30).forEach((l, i) => console.log(`  [${i}] ${l}`));
 
   // Detect "Meta Information" section header to grab meta from list blocks
   const metaSectionPattern = /^#{0,4}\s*\*{0,2}Meta\s*(?:Information|Info|信息)?\*{0,2}\s*$/i;
@@ -2604,6 +2608,7 @@ function postprocessFeishuMarkdown(md) {
       const val = metaMatch[2].trim().replace(/\*\*/g, '').trim();
       if (val) {
         meta[key] = val;
+        console.log(`[Feishu meta] Extracted: ${key} = "${val}"`);
         continue; // Remove meta line from body
       }
     }
@@ -2650,6 +2655,7 @@ function postprocessFeishuMarkdown(md) {
   }
 
   // Build YAML frontmatter from extracted meta
+  console.log('[Feishu meta] Final extracted meta:', JSON.stringify(meta));
   let output = '';
   if (Object.keys(meta).length > 0) {
     const yamlLines = ['---'];
