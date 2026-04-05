@@ -2537,7 +2537,7 @@ function feishuFetch(url, opts) {
     return fetch(custom + '/' + url, opts);
   }
   // Built-in: corsproxy.io (free, supports all HTTP methods)
-  return fetch('https://corsproxy.io/?' + encodeURIComponent(url), opts);
+  return fetch('https://corsproxy.io/?url=' + encodeURIComponent(url), opts);
 }
 
 // Cached tenant token
@@ -2590,13 +2590,27 @@ async function fetchFeishuDocBlocks(apiBase, documentId, token) {
 
 async function downloadFeishuImage(apiBase, fileToken, token) {
   try {
+    console.log('[Feishu] Downloading image:', fileToken);
     const res = await feishuFetch(apiBase + '/open-apis/drive/v1/medias/' + fileToken + '/download', {
       headers: { 'Authorization': 'Bearer ' + token },
     });
-    if (!res.ok) return null;
+    if (!res.ok) {
+      console.warn('[Feishu] Image download HTTP error:', res.status, fileToken);
+      return null;
+    }
     const blob = await res.blob();
-    const ext = (blob.type || 'image/png').split('/')[1] || 'png';
+    // Validate we actually got an image, not an error page from the proxy
+    if (blob.size < 100 || (blob.type && blob.type.startsWith('text/'))) {
+      console.warn('[Feishu] Image download returned non-image content:', blob.type, blob.size, fileToken);
+      return null;
+    }
+    let ext = 'png';
+    if (blob.type) {
+      const typeParts = blob.type.split('/');
+      if (typeParts[1]) ext = typeParts[1].replace('jpeg', 'jpg').replace('svg+xml', 'svg');
+    }
     const localUrl = URL.createObjectURL(blob);
+    console.log('[Feishu] Image downloaded OK:', fileToken, blob.type, blob.size);
     return { blob, localUrl, ext };
   } catch (e) {
     console.warn('[Feishu] Failed to download image:', fileToken, e);
@@ -2632,6 +2646,15 @@ function feishuTextRunToMd(el) {
 
 function feishuElementsToMd(elements) {
   return (elements || []).map(feishuTextRunToMd).join('');
+}
+
+// Plain text extraction (no markdown formatting) — used for code blocks
+function feishuElementsToPlainText(elements) {
+  return (elements || []).map(el => {
+    if (el.text_run) return el.text_run.content || '';
+    if (el.equation) return el.equation.content || '';
+    return '';
+  }).join('');
 }
 
 // Get the content field for a block based on its type
@@ -2672,6 +2695,7 @@ function feishuBlocksToMarkdown(blocks, apiBase, token) {
     if (bt === 2) {
       const text = feishuElementsToMd(content?.elements);
       lines.push(text || '');
+      lines.push('');
       return;
     }
 
@@ -2680,7 +2704,9 @@ function feishuBlocksToMarkdown(blocks, apiBase, token) {
       const level = bt - 2; // type 3 = H1, type 4 = H2, etc.
       const hashes = '#'.repeat(Math.min(level, 6));
       const text = feishuElementsToMd(content?.elements);
+      lines.push('');
       lines.push(hashes + ' ' + text);
+      lines.push('');
       return;
     }
 
@@ -2710,10 +2736,12 @@ function feishuBlocksToMarkdown(blocks, apiBase, token) {
     // ── Code block (14) ──
     if (bt === 14) {
       const lang = FEISHU_LANG_MAP[content?.style?.language] || '';
-      const code = feishuElementsToMd(content?.elements);
+      const code = feishuElementsToPlainText(content?.elements);
+      lines.push('');
       lines.push('```' + lang);
       lines.push(code);
       lines.push('```');
+      lines.push('');
       return;
     }
 
@@ -2721,14 +2749,17 @@ function feishuBlocksToMarkdown(blocks, apiBase, token) {
     if (bt === 15) {
       const text = feishuElementsToMd(content?.elements);
       lines.push('> ' + text);
+      lines.push('');
       return;
     }
 
     // ── Equation (16) ──
     if (bt === 16 && block.equation) {
+      lines.push('');
       lines.push('$$');
       lines.push(block.equation.content || '');
       lines.push('$$');
+      lines.push('');
       return;
     }
 
@@ -2749,16 +2780,23 @@ function feishuBlocksToMarkdown(blocks, apiBase, token) {
     // ── Image (27) ──
     if (bt === 27 && block.image) {
       imgIndex++;
+      const currentIdx = imgIndex; // capture for async closure
       const imgToken = block.image.token;
-      const filename = 'image' + imgIndex + '.png';
-      lines.push('![image](' + filename + ')');
+      const placeholderName = 'image' + currentIdx + '.png';
+      lines.push('');
+      lines.push('![image](' + placeholderName + ')');
+      lines.push('');
       // Queue image download
       imageDownloads.push(
         downloadFeishuImage(apiBase, imgToken, token).then(result => {
           if (result) {
             const ext = result.ext;
-            const finalName = 'image' + imgIndex + '.' + ext;
+            const finalName = 'image' + currentIdx + '.' + ext;
             state.images[finalName] = { blob: result.blob, localUrl: result.localUrl, strapiUrl: null, originalSize: result.blob.size };
+            // Also register under placeholder name if ext differs, so markdown reference works
+            if (ext !== 'png') {
+              state.images[placeholderName] = state.images[finalName];
+            }
           }
         })
       );
@@ -2808,6 +2846,7 @@ function feishuBlocksToMarkdown(blocks, apiBase, token) {
 
     // ── Quote container (34) — contains child quote blocks ──
     if (bt === 34) {
+      lines.push('');
       (block.children || []).forEach(cid => {
         const child = blockMap[cid];
         if (child) {
@@ -2815,6 +2854,7 @@ function feishuBlocksToMarkdown(blocks, apiBase, token) {
           if (ic) lines.push('> ' + feishuElementsToMd(ic.elements));
         }
       });
+      lines.push('');
       return;
     }
 
@@ -2848,7 +2888,9 @@ function feishuBlocksToMarkdown(blocks, apiBase, token) {
 
   topChildren.forEach(b => processBlock(b, ''));
 
-  return { markdown: lines.join('\n'), imageDownloads, title: '' };
+  // Collapse 3+ consecutive blank lines into 2, and trim leading/trailing blanks
+  const markdown = lines.join('\n').replace(/\n{3,}/g, '\n\n').trim();
+  return { markdown, imageDownloads, title: '' };
 }
 
 // ── Main entry point for Feishu link fetching ──
