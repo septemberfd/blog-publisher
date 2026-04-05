@@ -2966,6 +2966,12 @@ function postprocessFeishuHtml(html) {
       }
     }
 
+    // Single-cell table with <code> inside → mammoth detected monospace font, it's a code block
+    if (!hasCodeStyle && allCells.length === 1 && allCells[0].querySelector('code')) {
+      hasCodeStyle = true;
+      console.log('[postprocessFeishuHtml] Code block detected: single-cell table with <code>');
+    }
+
     // Single-cell table with multiple paragraphs and no rich formatting → code block
     if (!hasCodeStyle && allCells.length === 1) {
       const cell = allCells[0];
@@ -2978,18 +2984,40 @@ function postprocessFeishuHtml(html) {
     }
 
     if (hasCodeStyle) {
-      const pre = doc.createElement('pre');
+      const cell = allCells[0] || table;
+
+      // Convert <br> → newline text nodes so textContent preserves line breaks
+      cell.querySelectorAll('br').forEach(br => br.replaceWith('\n'));
+
+      let codeText;
       if (rows.length > 1) {
         // Multi-row: one line per cell
-        pre.textContent = Array.from(allCells).map(c => c.textContent).join('\n');
-      } else if (allCells.length === 1) {
-        // Single-cell: preserve line breaks from inner <p> elements
-        const paras = allCells[0].querySelectorAll('p');
-        pre.textContent = paras.length > 0
-          ? Array.from(paras).map(p => p.textContent).join('\n')
-          : allCells[0].textContent;
+        codeText = Array.from(allCells).map(c => c.textContent).join('\n');
+      } else {
+        // Single-cell: textContent now has \n from <br> replacements
+        codeText = cell.textContent;
       }
-      console.log('[postprocessFeishuHtml] Converted table → <pre>, lines:', pre.textContent.split('\n').length);
+
+      // Detect language prefix on first line (Feishu code blocks start with e.g. "Bash\n" or "Python\n")
+      const langRe = /^(Plain Text|Bash|Shell|Python|JavaScript|TypeScript|Go|Rust|Java|C\+\+|C#|C|Ruby|PHP|SQL|HTML|CSS|JSON|YAML|XML|Dockerfile|Markdown|Makefile|Swift|Kotlin|Scala|R|Lua|Perl|TOML|Protobuf|GraphQL|Diff|SCSS|Dart)\n/i;
+      const langMatch = codeText.match(langRe);
+      let lang = '';
+      if (langMatch) {
+        lang = langMatch[1].toLowerCase()
+          .replace('plain text', '').replace('c#', 'csharp').replace('c++', 'cpp')
+          .replace('javascript', 'js').replace('typescript', 'ts').replace('dockerfile', 'docker')
+          .trim();
+        codeText = codeText.substring(langMatch[0].length);
+      }
+
+      // Build <pre><code class="language-xxx"> so Turndown picks up the language
+      const pre = doc.createElement('pre');
+      const codeEl = doc.createElement('code');
+      if (lang) codeEl.className = 'language-' + lang;
+      codeEl.textContent = codeText;
+      pre.appendChild(codeEl);
+
+      console.log('[postprocessFeishuHtml] Converted table → <pre>, lang:', lang || '(none)', ', lines:', codeText.split('\n').length);
       table.replaceWith(pre);
     }
   });
