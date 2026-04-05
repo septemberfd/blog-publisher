@@ -1398,7 +1398,11 @@
         <input type="password" id="s_feishuAppSecret" placeholder="xxxx" />
       </div>
     </div>
-    <div class="field-hint" style="margin-top:-8px;">Required for fetching Feishu docs by link. Create an app at <a href="https://open.feishu.cn/app" target="_blank" style="color:var(--accent)">open.feishu.cn/app</a></div>
+    <div class="field">
+      <label>CORS PROXY URL</label>
+      <input type="text" id="s_feishuProxy" placeholder="https://your-proxy.workers.dev" />
+    </div>
+    <div class="field-hint" style="margin-top:-8px;">Required for fetching Feishu docs by link. <a href="https://open.feishu.cn/app" target="_blank" style="color:var(--accent)">Create a Feishu app</a> &nbsp;|&nbsp; CORS proxy needed because browsers block direct API calls. <button class="btn btn-ghost" style="font-size:11px;padding:2px 6px;" onclick="deployFeishuProxy()">Deploy proxy (1 click)</button></div>
 
     <div class="divider"></div>
 
@@ -2172,6 +2176,7 @@ function loadSettings() {
     ghPath:         localStorage.getItem('ghPath')      || 'blog/en',
     feishuAppId:    localStorage.getItem('feishuAppId')    || '',
     feishuAppSecret:localStorage.getItem('feishuAppSecret')|| '',
+    feishuProxy:    localStorage.getItem('feishuProxy')    || '',
   };
 }
 
@@ -2185,6 +2190,7 @@ function openSettings() {
   document.getElementById('s_ghPath').value      = s.ghPath;
   document.getElementById('s_feishuAppId').value   = s.feishuAppId;
   document.getElementById('s_feishuAppSecret').value = s.feishuAppSecret;
+  document.getElementById('s_feishuProxy').value    = s.feishuProxy;
   document.getElementById('settingsModal').classList.add('open');
   updateCacheStats();
 }
@@ -2194,7 +2200,7 @@ function closeSettings() {
 }
 
 function saveSettings() {
-  ['strapiToken','strapiUrl','ghToken','ghRepo','ghBranch','ghPath','feishuAppId','feishuAppSecret'].forEach(k => {
+  ['strapiToken','strapiUrl','ghToken','ghRepo','ghBranch','ghPath','feishuAppId','feishuAppSecret','feishuProxy'].forEach(k => {
     const el = document.getElementById('s_' + k);
     if (el) localStorage.setItem(k, el.value.trim());
   });
@@ -2527,6 +2533,52 @@ function parseFeishuUrl(url) {
   return { type: m[1], token: m[2], apiBase };
 }
 
+// ── CORS proxy helper ──
+// Browsers block direct cross-origin requests to Feishu API.
+// Route through a user-deployed CORS proxy (e.g. Cloudflare Worker).
+function feishuFetch(url, opts) {
+  const proxy = (loadSettings().feishuProxy || '').replace(/\/+$/, '');
+  if (!proxy) {
+    throw new Error('CORS Proxy URL not configured. Open Settings → paste your proxy URL. Click "Deploy proxy" for a free Cloudflare Worker.');
+  }
+  const proxied = proxy + '/' + url;
+  return fetch(proxied, opts);
+}
+
+// One-click deploy: open Cloudflare Worker quick-deploy with a pre-filled CORS proxy script
+function deployFeishuProxy() {
+  const workerCode = `
+export default {
+  async fetch(request) {
+    const url = new URL(request.url);
+    const target = url.pathname.slice(1) + url.search;
+    if (!target.startsWith('https://')) {
+      return new Response('Usage: /' + 'https://open.feishu.cn/...', { status: 400 });
+    }
+    const headers = new Headers(request.headers);
+    headers.delete('host');
+    const res = await fetch(target, {
+      method: request.method,
+      headers,
+      body: request.method !== 'GET' ? await request.text() : undefined,
+    });
+    const resp = new Response(res.body, res);
+    resp.headers.set('Access-Control-Allow-Origin', '*');
+    resp.headers.set('Access-Control-Allow-Methods', 'GET,POST,PUT,DELETE,OPTIONS');
+    resp.headers.set('Access-Control-Allow-Headers', 'Content-Type,Authorization');
+    if (request.method === 'OPTIONS') {
+      return new Response(null, { status: 204, headers: resp.headers });
+    }
+    return resp;
+  }
+};`.trim();
+  // Copy to clipboard and open Cloudflare dashboard
+  navigator.clipboard.writeText(workerCode).then(() => {
+    showAlert('Worker code copied to clipboard! Paste it in the Cloudflare Worker editor.', 'success');
+  }).catch(() => {});
+  window.open('https://dash.cloudflare.com/?to=/:account/workers-and-pages/create/workers/new', '_blank');
+}
+
 // Cached tenant token
 let _feishuTokenCache = { token: '', expires: 0 };
 
@@ -2538,7 +2590,7 @@ async function getFeishuTenantToken(apiBase) {
   if (!s.feishuAppId || !s.feishuAppSecret) {
     throw new Error('Feishu App ID / App Secret not configured. Open Settings to add them.');
   }
-  const res = await fetch(apiBase + '/open-apis/auth/v3/tenant_access_token/internal', {
+  const res = await feishuFetch(apiBase + '/open-apis/auth/v3/tenant_access_token/internal', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ app_id: s.feishuAppId, app_secret: s.feishuAppSecret }),
@@ -2552,7 +2604,7 @@ async function getFeishuTenantToken(apiBase) {
 async function resolveFeishuDocumentId(parsed, token) {
   if (parsed.type === 'docx' || parsed.type === 'docs') return parsed.token;
   // Wiki link: resolve to document ID
-  const res = await fetch(parsed.apiBase + '/open-apis/wiki/v2/spaces/get_node?token=' + parsed.token, {
+  const res = await feishuFetch(parsed.apiBase + '/open-apis/wiki/v2/spaces/get_node?token=' + parsed.token, {
     headers: { 'Authorization': 'Bearer ' + token },
   });
   const json = await res.json();
@@ -2566,7 +2618,7 @@ async function fetchFeishuDocBlocks(apiBase, documentId, token) {
   do {
     const url = apiBase + '/open-apis/docx/v1/documents/' + documentId + '/blocks?document_revision_id=-1&page_size=500'
       + (pageToken ? '&page_token=' + pageToken : '');
-    const res = await fetch(url, { headers: { 'Authorization': 'Bearer ' + token } });
+    const res = await feishuFetch(url, { headers: { 'Authorization': 'Bearer ' + token } });
     const json = await res.json();
     if (json.code !== 0) throw new Error('Failed to fetch doc blocks: ' + (json.msg || JSON.stringify(json)));
     blocks.push(...(json.data.items || []));
@@ -2577,7 +2629,7 @@ async function fetchFeishuDocBlocks(apiBase, documentId, token) {
 
 async function downloadFeishuImage(apiBase, fileToken, token) {
   try {
-    const res = await fetch(apiBase + '/open-apis/drive/v1/medias/' + fileToken + '/download', {
+    const res = await feishuFetch(apiBase + '/open-apis/drive/v1/medias/' + fileToken + '/download', {
       headers: { 'Authorization': 'Bearer ' + token },
     });
     if (!res.ok) return null;
