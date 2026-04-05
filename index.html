@@ -2352,13 +2352,34 @@ async function processDocx(file) {
     // Convert .docx → HTML, extracting images as blobs
     // Feishu docx has empty styles.xml but uses pStyle IDs (1=H1, 2=H2, 3=H3).
     // Use transformDocument to patch style names so mammoth's styleMap can match.
-    const feishuTransform = mammoth.transforms.paragraph(function(para) {
-      // Feishu uses numeric style IDs without style definitions
-      if (para.styleId && /^[1-9]$/.test(para.styleId) && !para.styleName) {
-        para.styleName = 'Heading ' + para.styleId;
+    // Walk the entire document tree to patch both paragraph and run styles.
+    // mammoth.transforms.paragraph only handles paragraphs; we also need to
+    // detect inline code runs by their monospace font property.
+    const feishuTransform = function(document) {
+      function walk(node) {
+        if (node.type === 'paragraph') {
+          // Feishu uses numeric style IDs without style definitions
+          if (node.styleId && /^[1-9]$/.test(node.styleId) && !node.styleName) {
+            node.styleName = 'Heading ' + node.styleId;
+          }
+        }
+        if (node.type === 'run') {
+          // Detect inline code by monospace font → set style so mammoth maps to <code>
+          if (!node.styleName && node.font &&
+              /monospace|Courier|Consolas|Monaco|Source.?Code|Menlo|Fira.?Code|SFMono|Cascadia|Inconsolata|Roboto.?Mono|JetBrains|Hack\b|Ubuntu.?Mono|Noto.?Sans.?Mono/i.test(node.font)) {
+            node.styleName = 'Code Char';
+            console.log('[feishuTransform] Inline code detected by font:', node.font);
+          }
+          // Log unrecognized run styles for future debugging
+          if (node.styleId && !node.styleName) {
+            console.log('[feishuTransform] Unrecognized run style:', node.styleId);
+          }
+        }
+        if (node.children) node.children.forEach(walk);
       }
-      return para;
-    });
+      walk(document);
+      return document;
+    };
 
     const result = await mammoth.convertToHtml(
       { arrayBuffer },
@@ -2411,9 +2432,11 @@ async function processDocx(file) {
     if (result.messages && result.messages.length > 0) {
       console.warn('[processDocx] mammoth warnings:', result.messages);
     }
+    console.log('[processDocx] mammoth raw HTML (first 2000 chars):', result.value.substring(0, 2000));
 
     // Feishu-specific HTML post-processing before Markdown conversion
     const fixedHtml = postprocessFeishuHtml(result.value);
+    console.log('[processDocx] post-processed HTML (first 2000 chars):', fixedHtml.substring(0, 2000));
 
     // Convert mammoth HTML → Markdown using existing pipeline
     let md = convertGoogleDocToMarkdown(fixedHtml);
@@ -2452,18 +2475,73 @@ function postprocessFeishuHtml(html) {
   const parser = new DOMParser();
   const doc = parser.parseFromString(html, 'text/html');
 
-  // ── 1. Detect code blocks: single-cell tables with background color ────────
-  // Feishu often exports code blocks as a table with one cell + grey background.
+  // ── 1. Detect code blocks: tables with code-like styling or structure ────────
+  // Feishu exports code blocks as tables in two common layouts:
+  //   a) Single-cell table (1 row, 1 td) with grey background, code inside as <p>s
+  //   b) Multi-row single-column table (1 td per row, one code line per row)
+  // mammoth often strips table styles, so we also use structural heuristics.
+  const bgRe = /background(-color)?\s*:\s*(#[c-f][0-9a-f]{5}|rgb\s*\(\s*[12]\d{2}|grey|gray|#f5f5f5|#eee)/i;
+  const monoRe = /font-family\s*:[^;]*(?:monospace|Courier|Consolas|Monaco|Source Code|Menlo|Fira Code|SFMono|Cascadia)/i;
+
   doc.querySelectorAll('table').forEach(table => {
-    const cells = table.querySelectorAll('td');
-    if (cells.length !== 1) return; // only single-cell tables
-    const cell = cells[0];
-    const style = cell.getAttribute('style') || table.getAttribute('style') || '';
-    const hasCodeBg = /background(-color)?\s*:\s*(#[ef][0-9a-f]{5}|#[cd][0-9a-f]{5}|rgb\s*\(\s*2[2-5]\d|grey|gray|#f5f5f5|#eee)/i.test(style);
-    const hasMono = /font-family\s*:[^;]*(?:monospace|Courier|Consolas|Monaco|Source Code|Menlo|Fira Code)/i.test(style);
-    if (hasCodeBg || hasMono) {
+    if (table.closest('pre')) return; // already processed
+    const rows = table.querySelectorAll('tr');
+    const allCells = table.querySelectorAll('td, th');
+    if (allCells.length === 0) return;
+
+    // Determine if every row has exactly 1 cell (single-column layout)
+    const isSingleColumn = rows.length > 0 &&
+      Array.from(rows).every(row => row.querySelectorAll('td, th').length === 1);
+
+    // Multi-column tables are real data tables — skip them entirely
+    if (!isSingleColumn) return;
+
+    // ── Style-based detection ──
+    // Check for code background or monospace font on ANY descendant element
+    let hasCodeStyle = false;
+    for (const el of [table, ...table.querySelectorAll('*')]) {
+      const style = el.getAttribute('style') || '';
+      if (style && (bgRe.test(style) || monoRe.test(style))) {
+        hasCodeStyle = true;
+        break;
+      }
+    }
+
+    // ── Structure-based detection (fallback when mammoth strips styles) ──
+    // Single-column table with 2+ rows, no header, no rich content → likely code
+    if (!hasCodeStyle && rows.length >= 2) {
+      const hasHeader = table.querySelector('th');
+      const hasRichContent = table.querySelector('img, table, ul, ol, h1, h2, h3, h4, h5, h6');
+      if (!hasHeader && !hasRichContent) {
+        hasCodeStyle = true;
+        console.log('[postprocessFeishuHtml] Code block detected by structure: single-column table,', rows.length, 'rows');
+      }
+    }
+
+    // Single-cell table with multiple paragraphs and no rich formatting → code block
+    if (!hasCodeStyle && allCells.length === 1) {
+      const cell = allCells[0];
+      const paragraphs = cell.querySelectorAll('p');
+      const hasRichContent = cell.querySelector('img, table, ul, ol, h1, h2, h3, h4, h5, h6, a[href]');
+      if (paragraphs.length >= 2 && !hasRichContent) {
+        hasCodeStyle = true;
+        console.log('[postprocessFeishuHtml] Code block detected by structure: single-cell table,', paragraphs.length, 'paragraphs');
+      }
+    }
+
+    if (hasCodeStyle) {
       const pre = doc.createElement('pre');
-      pre.textContent = cell.textContent;
+      if (rows.length > 1) {
+        // Multi-row: one line per cell
+        pre.textContent = Array.from(allCells).map(c => c.textContent).join('\n');
+      } else if (allCells.length === 1) {
+        // Single-cell: preserve line breaks from inner <p> elements
+        const paras = allCells[0].querySelectorAll('p');
+        pre.textContent = paras.length > 0
+          ? Array.from(paras).map(p => p.textContent).join('\n')
+          : allCells[0].textContent;
+      }
+      console.log('[postprocessFeishuHtml] Converted table → <pre>, lines:', pre.textContent.split('\n').length);
       table.replaceWith(pre);
     }
   });
