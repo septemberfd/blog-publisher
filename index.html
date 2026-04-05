@@ -1398,11 +1398,7 @@
         <input type="password" id="s_feishuAppSecret" placeholder="xxxx" />
       </div>
     </div>
-    <div class="field">
-      <label>CORS PROXY URL</label>
-      <input type="text" id="s_feishuProxy" placeholder="https://your-proxy.workers.dev" />
-    </div>
-    <div class="field-hint" style="margin-top:-8px;">Required for fetching Feishu docs by link. <a href="https://open.feishu.cn/app" target="_blank" style="color:var(--accent)">Create a Feishu app</a> &nbsp;|&nbsp; CORS proxy needed because browsers block direct API calls. <button class="btn btn-ghost" style="font-size:11px;padding:2px 6px;" onclick="deployFeishuProxy()">Deploy proxy (1 click)</button></div>
+    <div class="field-hint" style="margin-top:-8px;">For fetching Feishu docs by link. <a href="https://open.feishu.cn/app" target="_blank" style="color:var(--accent)">Create a Feishu app</a>, add wiki/doc read permissions, then paste App ID &amp; Secret above.</div>
 
     <div class="divider"></div>
 
@@ -2190,7 +2186,6 @@ function openSettings() {
   document.getElementById('s_ghPath').value      = s.ghPath;
   document.getElementById('s_feishuAppId').value   = s.feishuAppId;
   document.getElementById('s_feishuAppSecret').value = s.feishuAppSecret;
-  document.getElementById('s_feishuProxy').value    = s.feishuProxy;
   document.getElementById('settingsModal').classList.add('open');
   updateCacheStats();
 }
@@ -2535,48 +2530,14 @@ function parseFeishuUrl(url) {
 
 // ── CORS proxy helper ──
 // Browsers block direct cross-origin requests to Feishu API.
-// Route through a user-deployed CORS proxy (e.g. Cloudflare Worker).
+// Use a built-in public proxy by default, or a user-configured custom one.
 function feishuFetch(url, opts) {
-  const proxy = (loadSettings().feishuProxy || '').replace(/\/+$/, '');
-  if (!proxy) {
-    throw new Error('CORS Proxy URL not configured. Open Settings → paste your proxy URL. Click "Deploy proxy" for a free Cloudflare Worker.');
+  const custom = (loadSettings().feishuProxy || '').replace(/\/+$/, '');
+  if (custom) {
+    return fetch(custom + '/' + url, opts);
   }
-  const proxied = proxy + '/' + url;
-  return fetch(proxied, opts);
-}
-
-// One-click deploy: open Cloudflare Worker quick-deploy with a pre-filled CORS proxy script
-function deployFeishuProxy() {
-  const workerCode = `
-export default {
-  async fetch(request) {
-    const url = new URL(request.url);
-    const target = url.pathname.slice(1) + url.search;
-    if (!target.startsWith('https://')) {
-      return new Response('Usage: /' + 'https://open.feishu.cn/...', { status: 400 });
-    }
-    const headers = new Headers(request.headers);
-    headers.delete('host');
-    const res = await fetch(target, {
-      method: request.method,
-      headers,
-      body: request.method !== 'GET' ? await request.text() : undefined,
-    });
-    const resp = new Response(res.body, res);
-    resp.headers.set('Access-Control-Allow-Origin', '*');
-    resp.headers.set('Access-Control-Allow-Methods', 'GET,POST,PUT,DELETE,OPTIONS');
-    resp.headers.set('Access-Control-Allow-Headers', 'Content-Type,Authorization');
-    if (request.method === 'OPTIONS') {
-      return new Response(null, { status: 204, headers: resp.headers });
-    }
-    return resp;
-  }
-};`.trim();
-  // Copy to clipboard and open Cloudflare dashboard
-  navigator.clipboard.writeText(workerCode).then(() => {
-    showAlert('Worker code copied to clipboard! Paste it in the Cloudflare Worker editor.', 'success');
-  }).catch(() => {});
-  window.open('https://dash.cloudflare.com/?to=/:account/workers-and-pages/create/workers/new', '_blank');
+  // Built-in: corsproxy.io (free, supports all HTTP methods)
+  return fetch('https://corsproxy.io/?' + encodeURIComponent(url), opts);
 }
 
 // Cached tenant token
