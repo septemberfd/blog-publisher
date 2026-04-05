@@ -1388,6 +1388,20 @@
 
     <div class="divider"></div>
 
+    <div class="field-row">
+      <div class="field">
+        <label>FEISHU APP ID</label>
+        <input type="text" id="s_feishuAppId" placeholder="cli_xxxx" />
+      </div>
+      <div class="field">
+        <label>FEISHU APP SECRET</label>
+        <input type="password" id="s_feishuAppSecret" placeholder="xxxx" />
+      </div>
+    </div>
+    <div class="field-hint" style="margin-top:-8px;">Required for fetching Feishu docs by link. Create an app at <a href="https://open.feishu.cn/app" target="_blank" style="color:var(--accent)">open.feishu.cn/app</a></div>
+
+    <div class="divider"></div>
+
     <div style="display:flex; gap: 10px; justify-content: space-between; align-items:center;">
       <div>
         <button class="btn btn-ghost" style="font-size:11px;" onclick="clearImageCache()">🗑 Clear All Cache</button>
@@ -1689,6 +1703,20 @@
         </div>
       </div>
       <input type="file" id="fileInput" accept=".md,.zip,.docx" onchange="handleFileSelect(event)">
+
+      <div style="display:flex; align-items:center; gap:12px; margin:16px 0 8px;">
+        <div style="flex:1; height:1px; background:var(--border);"></div>
+        <span style="color:var(--text3); font-size:12px; font-weight:500;">OR</span>
+        <div style="flex:1; height:1px; background:var(--border);"></div>
+      </div>
+
+      <div style="display:flex; gap:8px; align-items:center;">
+        <input type="text" id="feishuLinkInput" placeholder="Paste Feishu link — e.g. https://xxx.feishu.cn/wiki/xxx or /docx/xxx"
+               style="flex:1; padding:8px 12px; border:1px solid var(--border); border-radius:6px; font-size:13px; background:var(--bg2); color:var(--text);"
+               onkeydown="if(event.key==='Enter'){event.preventDefault();fetchFeishuDoc();}">
+        <button class="btn btn-primary" onclick="fetchFeishuDoc()" id="feishuFetchBtn" style="white-space:nowrap;">Fetch</button>
+      </div>
+      <div id="feishuFetchStatus" style="font-size:12px; color:var(--text3); margin-top:4px; display:none;"></div>
     </div>
 
     <!-- Shown after a file is parsed -->
@@ -2136,12 +2164,14 @@ let state = {
 // ─── Settings ─────────────────────────────────────────────────────────────────
 function loadSettings() {
   return {
-    strapiToken: localStorage.getItem('strapiToken') || '',
-    strapiUrl:   localStorage.getItem('strapiUrl')   || 'https://cms.zilliz.cc',
-    ghToken:     localStorage.getItem('ghToken')     || '',
-    ghRepo:      localStorage.getItem('ghRepo')      || 'milvus-io/community',
-    ghBranch:    localStorage.getItem('ghBranch')    || 'master',
-    ghPath:      localStorage.getItem('ghPath')      || 'blog/en',
+    strapiToken:    localStorage.getItem('strapiToken') || '',
+    strapiUrl:      localStorage.getItem('strapiUrl')   || 'https://cms.zilliz.cc',
+    ghToken:        localStorage.getItem('ghToken')     || '',
+    ghRepo:         localStorage.getItem('ghRepo')      || 'milvus-io/community',
+    ghBranch:       localStorage.getItem('ghBranch')    || 'master',
+    ghPath:         localStorage.getItem('ghPath')      || 'blog/en',
+    feishuAppId:    localStorage.getItem('feishuAppId')    || '',
+    feishuAppSecret:localStorage.getItem('feishuAppSecret')|| '',
   };
 }
 
@@ -2153,6 +2183,8 @@ function openSettings() {
   document.getElementById('s_ghRepo').value      = s.ghRepo;
   document.getElementById('s_ghBranch').value    = s.ghBranch;
   document.getElementById('s_ghPath').value      = s.ghPath;
+  document.getElementById('s_feishuAppId').value   = s.feishuAppId;
+  document.getElementById('s_feishuAppSecret').value = s.feishuAppSecret;
   document.getElementById('settingsModal').classList.add('open');
   updateCacheStats();
 }
@@ -2162,7 +2194,7 @@ function closeSettings() {
 }
 
 function saveSettings() {
-  ['strapiToken','strapiUrl','ghToken','ghRepo','ghBranch','ghPath'].forEach(k => {
+  ['strapiToken','strapiUrl','ghToken','ghRepo','ghBranch','ghPath','feishuAppId','feishuAppSecret'].forEach(k => {
     const el = document.getElementById('s_' + k);
     if (el) localStorage.setItem(k, el.value.trim());
   });
@@ -2463,6 +2495,422 @@ async function processDocx(file) {
   } catch (err) {
     showAlert('Failed to process .docx: ' + err.message, 'error');
     console.error(err);
+  }
+}
+
+// ─── Feishu Link → Markdown (via Open API) ──────────────────────────────────
+// Fetches a Feishu/Lark document directly via its Open API, converts the
+// structured block tree to Markdown. Much more accurate than .docx export
+// because code blocks, inline code, tables, etc. are explicitly typed.
+
+// Feishu code block language enum → markdown language identifier
+const FEISHU_LANG_MAP = {
+  1:'plaintext',2:'abap',3:'ada',4:'apache',5:'apex',6:'asm',7:'bash',8:'csharp',
+  9:'cpp',10:'c',11:'cobol',12:'css',13:'coffeescript',14:'d',15:'dart',16:'delphi',
+  17:'django',18:'dockerfile',19:'erlang',20:'fortran',21:'foxpro',22:'go',23:'groovy',
+  24:'html',25:'handlebars',26:'http',27:'haskell',28:'json',29:'java',30:'javascript',
+  31:'julia',32:'kotlin',33:'latex',34:'lisp',35:'logo',36:'lua',37:'matlab',38:'makefile',
+  39:'markdown',40:'nginx',41:'objectivec',42:'openedge',43:'php',44:'perl',45:'postscript',
+  46:'powershell',47:'prolog',48:'protobuf',49:'python',50:'r',51:'rpg',52:'ruby',53:'rust',
+  54:'sas',55:'scss',56:'sql',57:'scala',58:'scheme',59:'scratch',60:'shell',61:'swift',
+  62:'thrift',63:'typescript',64:'vbscript',65:'vb',66:'xml',67:'yaml',68:'cmake',69:'diff',
+  70:'gherkin',71:'graphql',72:'glsl',73:'properties',74:'solidity',75:'toml',
+};
+
+function parseFeishuUrl(url) {
+  // Handle: https://xxx.feishu.cn/wiki/TOKEN  /docx/TOKEN  /docs/TOKEN
+  //         https://xxx.larksuite.com/wiki/TOKEN  etc.
+  const m = url.match(/(?:feishu\.cn|larksuite\.com)\/(wiki|docx|docs)\/([A-Za-z0-9]+)/);
+  if (!m) return null;
+  const isFeishu = /feishu\.cn/.test(url);
+  const apiBase = isFeishu ? 'https://open.feishu.cn' : 'https://open.larksuite.com';
+  return { type: m[1], token: m[2], apiBase };
+}
+
+// Cached tenant token
+let _feishuTokenCache = { token: '', expires: 0 };
+
+async function getFeishuTenantToken(apiBase) {
+  if (_feishuTokenCache.token && Date.now() < _feishuTokenCache.expires) {
+    return _feishuTokenCache.token;
+  }
+  const s = loadSettings();
+  if (!s.feishuAppId || !s.feishuAppSecret) {
+    throw new Error('Feishu App ID / App Secret not configured. Open Settings to add them.');
+  }
+  const res = await fetch(apiBase + '/open-apis/auth/v3/tenant_access_token/internal', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ app_id: s.feishuAppId, app_secret: s.feishuAppSecret }),
+  });
+  const json = await res.json();
+  if (json.code !== 0) throw new Error('Feishu auth failed: ' + (json.msg || JSON.stringify(json)));
+  _feishuTokenCache = { token: json.tenant_access_token, expires: Date.now() + (json.expire - 60) * 1000 };
+  return json.tenant_access_token;
+}
+
+async function resolveFeishuDocumentId(parsed, token) {
+  if (parsed.type === 'docx' || parsed.type === 'docs') return parsed.token;
+  // Wiki link: resolve to document ID
+  const res = await fetch(parsed.apiBase + '/open-apis/wiki/v2/spaces/get_node?token=' + parsed.token, {
+    headers: { 'Authorization': 'Bearer ' + token },
+  });
+  const json = await res.json();
+  if (json.code !== 0) throw new Error('Failed to resolve wiki node: ' + (json.msg || JSON.stringify(json)));
+  return json.data.node.obj_token;
+}
+
+async function fetchFeishuDocBlocks(apiBase, documentId, token) {
+  const blocks = [];
+  let pageToken = '';
+  do {
+    const url = apiBase + '/open-apis/docx/v1/documents/' + documentId + '/blocks?document_revision_id=-1&page_size=500'
+      + (pageToken ? '&page_token=' + pageToken : '');
+    const res = await fetch(url, { headers: { 'Authorization': 'Bearer ' + token } });
+    const json = await res.json();
+    if (json.code !== 0) throw new Error('Failed to fetch doc blocks: ' + (json.msg || JSON.stringify(json)));
+    blocks.push(...(json.data.items || []));
+    pageToken = json.data.has_more ? json.data.page_token : '';
+  } while (pageToken);
+  return blocks;
+}
+
+async function downloadFeishuImage(apiBase, fileToken, token) {
+  try {
+    const res = await fetch(apiBase + '/open-apis/drive/v1/medias/' + fileToken + '/download', {
+      headers: { 'Authorization': 'Bearer ' + token },
+    });
+    if (!res.ok) return null;
+    const blob = await res.blob();
+    const ext = (blob.type || 'image/png').split('/')[1] || 'png';
+    const localUrl = URL.createObjectURL(blob);
+    return { blob, localUrl, ext };
+  } catch (e) {
+    console.warn('[Feishu] Failed to download image:', fileToken, e);
+    return null;
+  }
+}
+
+// Convert a single text element to markdown
+function feishuTextRunToMd(el) {
+  const tr = el.text_run;
+  if (!tr) {
+    // mention_doc → treat as link
+    if (el.mention_doc) return '[' + (el.mention_doc.title || 'doc') + '](' + (el.mention_doc.url || '') + ')';
+    if (el.equation) return '$' + (el.equation.content || '') + '$';
+    return '';
+  }
+  let text = tr.content || '';
+  if (!text) return '';
+  const st = tr.text_element_style || {};
+  // Apply formatting — inline_code first (no other formatting inside code)
+  if (st.inline_code) return '`' + text + '`';
+  if (st.bold) text = '**' + text + '**';
+  if (st.italic) text = '*' + text + '*';
+  if (st.strikethrough) text = '~~' + text + '~~';
+  if (st.link && st.link.url) {
+    let href = st.link.url;
+    // Feishu encodes URLs — decode percent-encoding
+    try { href = decodeURIComponent(href); } catch (_) {}
+    text = '[' + text + '](' + href + ')';
+  }
+  return text;
+}
+
+function feishuElementsToMd(elements) {
+  return (elements || []).map(feishuTextRunToMd).join('');
+}
+
+// Get the content field for a block based on its type
+function getBlockContent(block) {
+  // Block types store content in a field named after the type
+  const typeFieldMap = {
+    1: 'page', 2: 'text',
+    3: 'heading1', 4: 'heading2', 5: 'heading3', 6: 'heading4',
+    7: 'heading5', 8: 'heading6', 9: 'heading7', 10: 'heading8', 11: 'heading9',
+    12: 'bullet', 13: 'ordered', 14: 'code', 15: 'quote', 17: 'todo',
+  };
+  const field = typeFieldMap[block.block_type];
+  return field ? block[field] : null;
+}
+
+function feishuBlocksToMarkdown(blocks, apiBase, token) {
+  // Build block map for lookup
+  const blockMap = {};
+  blocks.forEach(b => { blockMap[b.block_id] = b; });
+
+  // Find root (page block, type 1)
+  const root = blocks.find(b => b.block_type === 1);
+  if (!root) return { markdown: '', title: '', meta: {} };
+
+  const lines = [];
+  let imgIndex = 0;
+  const imageDownloads = []; // promises for image downloads
+  const meta = {};
+
+  // Process children of root in order
+  const topChildren = (root.children || []).map(id => blockMap[id]).filter(Boolean);
+
+  function processBlock(block, indent) {
+    const bt = block.block_type;
+    const content = getBlockContent(block);
+
+    // ── Text (2) ──
+    if (bt === 2) {
+      const text = feishuElementsToMd(content?.elements);
+      lines.push(text || '');
+      return;
+    }
+
+    // ── Headings (3-11) ──
+    if (bt >= 3 && bt <= 11) {
+      const level = bt - 2; // type 3 = H1, type 4 = H2, etc.
+      const hashes = '#'.repeat(Math.min(level, 6));
+      const text = feishuElementsToMd(content?.elements);
+      lines.push(hashes + ' ' + text);
+      return;
+    }
+
+    // ── Bullet list (12) ──
+    if (bt === 12) {
+      const text = feishuElementsToMd(content?.elements);
+      lines.push(indent + '- ' + text);
+      // Process nested children (sub-items)
+      (block.children || []).forEach(cid => {
+        const child = blockMap[cid];
+        if (child) processBlock(child, indent + '  ');
+      });
+      return;
+    }
+
+    // ── Ordered list (13) ──
+    if (bt === 13) {
+      const text = feishuElementsToMd(content?.elements);
+      lines.push(indent + '1. ' + text);
+      (block.children || []).forEach(cid => {
+        const child = blockMap[cid];
+        if (child) processBlock(child, indent + '   ');
+      });
+      return;
+    }
+
+    // ── Code block (14) ──
+    if (bt === 14) {
+      const lang = FEISHU_LANG_MAP[content?.style?.language] || '';
+      const code = feishuElementsToMd(content?.elements);
+      lines.push('```' + lang);
+      lines.push(code);
+      lines.push('```');
+      return;
+    }
+
+    // ── Quote (15) ──
+    if (bt === 15) {
+      const text = feishuElementsToMd(content?.elements);
+      lines.push('> ' + text);
+      return;
+    }
+
+    // ── Equation (16) ──
+    if (bt === 16 && block.equation) {
+      lines.push('$$');
+      lines.push(block.equation.content || '');
+      lines.push('$$');
+      return;
+    }
+
+    // ── Todo (17) ──
+    if (bt === 17) {
+      const text = feishuElementsToMd(content?.elements);
+      const done = content?.style?.done ? 'x' : ' ';
+      lines.push(indent + '- [' + done + '] ' + text);
+      return;
+    }
+
+    // ── Divider (22) ──
+    if (bt === 22) {
+      lines.push('---');
+      return;
+    }
+
+    // ── Image (27) ──
+    if (bt === 27 && block.image) {
+      imgIndex++;
+      const imgToken = block.image.token;
+      const filename = 'image' + imgIndex + '.png';
+      lines.push('![image](' + filename + ')');
+      // Queue image download
+      imageDownloads.push(
+        downloadFeishuImage(apiBase, imgToken, token).then(result => {
+          if (result) {
+            const ext = result.ext;
+            const finalName = 'image' + imgIndex + '.' + ext;
+            state.images[finalName] = { blob: result.blob, localUrl: result.localUrl, strapiUrl: null, originalSize: result.blob.size };
+          }
+        })
+      );
+      return;
+    }
+
+    // ── Table (31) ──
+    if (bt === 31 && block.table) {
+      const prop = block.table.property || {};
+      const rowSize = prop.row_size || 0;
+      const colSize = prop.column_size || 0;
+      if (!rowSize || !colSize) return;
+
+      // Cells are children in row-major order
+      const cellIds = block.children || [];
+      const matrix = [];
+      for (let r = 0; r < rowSize; r++) {
+        const row = [];
+        for (let c = 0; c < colSize; c++) {
+          const cellId = cellIds[r * colSize + c];
+          const cell = cellId ? blockMap[cellId] : null;
+          // Each cell (type 32) has children that are text/code/etc. blocks
+          let cellText = '';
+          if (cell && cell.children) {
+            cellText = cell.children.map(id => {
+              const inner = blockMap[id];
+              if (!inner) return '';
+              const ic = getBlockContent(inner);
+              return ic ? feishuElementsToMd(ic.elements) : '';
+            }).join(' ');
+          }
+          row.push(cellText.replace(/\|/g, '\\|').replace(/\n/g, ' ').trim() || ' ');
+        }
+        matrix.push(row);
+      }
+      // Build markdown table
+      const header = '| ' + matrix[0].join(' | ') + ' |';
+      const sep = '| ' + matrix[0].map(() => '---').join(' | ') + ' |';
+      const body = matrix.slice(1).map(r => '| ' + r.join(' | ') + ' |').join('\n');
+      lines.push('');
+      lines.push(header);
+      lines.push(sep);
+      if (body) lines.push(body);
+      lines.push('');
+      return;
+    }
+
+    // ── Quote container (34) — contains child quote blocks ──
+    if (bt === 34) {
+      (block.children || []).forEach(cid => {
+        const child = blockMap[cid];
+        if (child) {
+          const ic = getBlockContent(child);
+          if (ic) lines.push('> ' + feishuElementsToMd(ic.elements));
+        }
+      });
+      return;
+    }
+
+    // ── Callout (19) — treat as blockquote ──
+    if (bt === 19) {
+      (block.children || []).forEach(cid => {
+        const child = blockMap[cid];
+        if (child) {
+          const ic = getBlockContent(child);
+          if (ic) lines.push('> ' + feishuElementsToMd(ic.elements));
+          else processBlock(child, indent);
+        }
+      });
+      return;
+    }
+
+    // ── File / attachment (23) ──
+    if (bt === 23 && block.file) {
+      lines.push('[' + (block.file.name || 'attachment') + ']');
+      return;
+    }
+
+    // ── Fallback: recurse into children ──
+    if (block.children && block.children.length) {
+      block.children.forEach(cid => {
+        const child = blockMap[cid];
+        if (child) processBlock(child, indent);
+      });
+    }
+  }
+
+  topChildren.forEach(b => processBlock(b, ''));
+
+  return { markdown: lines.join('\n'), imageDownloads, title: '' };
+}
+
+// ── Main entry point for Feishu link fetching ──
+async function fetchFeishuDoc() {
+  const input = document.getElementById('feishuLinkInput');
+  const statusEl = document.getElementById('feishuFetchStatus');
+  const btn = document.getElementById('feishuFetchBtn');
+  const url = (input.value || '').trim();
+
+  if (!url) { showAlert('Please paste a Feishu document link.', 'error'); return; }
+
+  const parsed = parseFeishuUrl(url);
+  if (!parsed) { showAlert('Unrecognized Feishu link format. Expecting .../wiki/xxx or .../docx/xxx', 'error'); return; }
+
+  function setStatus(msg) {
+    statusEl.style.display = 'block';
+    statusEl.textContent = msg;
+  }
+
+  btn.disabled = true;
+  btn.textContent = 'Fetching...';
+  state.images = {};
+
+  try {
+    setStatus('Authenticating with Feishu...');
+    const token = await getFeishuTenantToken(parsed.apiBase);
+
+    setStatus('Resolving document ID...');
+    const documentId = await resolveFeishuDocumentId(parsed, token);
+    console.log('[Feishu] Document ID:', documentId);
+
+    setStatus('Fetching document blocks...');
+    const blocks = await fetchFeishuDocBlocks(parsed.apiBase, documentId, token);
+    console.log('[Feishu] Fetched', blocks.length, 'blocks');
+
+    setStatus('Converting to Markdown...');
+    const result = feishuBlocksToMarkdown(blocks, parsed.apiBase, token);
+
+    // Wait for image downloads (best-effort)
+    if (result.imageDownloads.length) {
+      setStatus('Downloading images (' + result.imageDownloads.length + ')...');
+      await Promise.allSettled(result.imageDownloads);
+    }
+
+    let md = result.markdown;
+
+    // Run Feishu markdown post-processing for meta extraction
+    const feishuResult = postprocessFeishuMarkdown(md);
+    md = feishuResult.markdown;
+
+    const { frontmatter, body } = splitFrontmatter(md);
+    const content = extractContentSection(body);
+    state.finalMarkdown = frontmatter ? (frontmatter + '\n' + content) : content;
+
+    const info = parseDocInfo(state.finalMarkdown);
+    const bodyMeta = extractBodyMeta(body);
+    const fm = feishuResult.meta;
+
+    state.title = fm.title || info.title || bodyMeta.title || '';
+    state.author = fm.author || info.author || bodyMeta.author || '';
+    const slugSource = fm.id || fm.slug || fm.url || info.id || '';
+    state.filename = (slugSource || titleToSlug(state.title) || 'feishu-doc') + '.md';
+
+    setStatus('Done! ' + blocks.length + ' blocks converted.');
+    showParsedSummary(state.finalMarkdown);
+
+  } catch (err) {
+    console.error('[Feishu] Error:', err);
+    statusEl.style.display = 'block';
+    statusEl.style.color = 'var(--error)';
+    statusEl.textContent = err.message;
+    showAlert('Feishu fetch failed: ' + err.message, 'error');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Fetch';
   }
 }
 
