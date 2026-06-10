@@ -5604,9 +5604,10 @@ function resolveFilePath(input) {
 }
 
 // Fetch existing file from GitHub
+// Token is optional here: reading a public repo works anonymously. A token is
+// only required later when creating the PR (createPR / createUpdatePR).
 async function fetchExistingFile() {
   const s = loadSettings();
-  if (!s.ghToken) { showAlert('Set your GitHub token in Settings first', 'warn'); openSettings(); return; }
 
   const rawInput = document.getElementById('u_filePath').value.trim();
   if (!rawInput) { showAlert('Enter a blog URL or file path', 'warn'); return; }
@@ -5632,19 +5633,26 @@ async function fetchExistingFile() {
 
   try {
     const url = `https://api.github.com/repos/${owner}/${repo}/contents/${filePath}?ref=${branch}`;
-    const token = s.ghToken.trim();
+    const token = (s.ghToken || '').trim();
+    const baseHeaders = { 'Accept': 'application/vnd.github.v3+json' };
 
-    const res = await fetch(url, {
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        'Accept': 'application/vnd.github.v3+json',
-      },
+    let res = await fetch(url, {
+      headers: token ? { ...baseHeaders, 'Authorization': `Bearer ${token}` } : baseHeaders,
     });
+
+    // GitHub returns 401 Bad credentials for an expired/revoked token even on
+    // public repos — retry anonymously so a stale token doesn't block reads.
+    let tokenRejected = false;
+    if (res.status === 401 && token) {
+      tokenRejected = true;
+      res = await fetch(url, { headers: baseHeaders });
+    }
 
     if (!res.ok) {
       const errData = await res.json().catch(() => ({}));
       const hint = res.status === 401 ? ' — Check token in Settings (needs repo or Contents:Read scope).'
-                 : res.status === 404 ? ` — File "${filePath}" not found in ${owner}/${repo} (branch: ${branch}).`
+                 : res.status === 404 ? ` — File "${filePath}" not found in ${owner}/${repo} (branch: ${branch})${tokenRejected ? '. Note: your saved token was rejected; if this repo is private, update the token in Settings' : ''}.`
+                 : res.status === 403 ? ' — Rate limited or access denied. Add a valid token in Settings.'
                  : '';
       throw new Error(`HTTP ${res.status}: ${errData.message || 'Request failed'}${hint}`);
     }
@@ -5658,7 +5666,8 @@ async function fetchExistingFile() {
 
     btn.disabled = false;
     btn.innerHTML = 'Fetch File';
-    statusEl.innerHTML = `<span style="color:var(--success);">Found: ${filePath} (${(content.length / 1024).toFixed(1)} KB)</span>`;
+    statusEl.innerHTML = `<span style="color:var(--success);">Found: ${filePath} (${(content.length / 1024).toFixed(1)} KB)</span>`
+      + (tokenRejected ? ` <span style="color:var(--warn);">Your GitHub token was rejected (expired/revoked) — fetched anonymously. Update it in Settings before creating the PR.</span>` : '');
 
     if (state.updateSubMode === 'quick') {
       showQuickEditor(content, filePath, data.sha);
